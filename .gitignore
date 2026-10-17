@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+backend/.venv/
+backend/.cache/
+backend/.env
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Node / Next
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env*.local
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+*.log
+.idea/
+.vscode/*
+!.vscode/settings.json
+
+# Tooling / assistant config — keep out of the repo
+CLAUDE.md
+**/CLAUDE.md
+.claude/
+**/.claude/
+*.skill
+skills/
+.cursor/
+.cursorrules
+.aider*
+.github/copilot-instructions.md
