@@ -1,10 +1,10 @@
 <div align="center">
 
-# ⚖️ Honest Portfolio Reviewer
+# ⚖️ Truthfolio
 
 ### Should you keep that fund, drop it, or switch to something better?
 
-**Get the honest answer — not a sales pitch.**
+**The honest truth about your mutual funds — not a sales pitch.**
 Every verdict is computed from real market data, measured against similar funds, and explained
 so plainly that anyone can follow the *why* — not just finance pros.
 
@@ -19,7 +19,7 @@ so plainly that anyone can follow the *why* — not just finance pros.
 If you've put money into mutual funds, you've probably asked yourself: *"Is this actually a
 good fund, or am I just hoping?"*
 
-**Honest Portfolio Reviewer answers that question — honestly.** You give it a fund (or your
+**Truthfolio answers that question — honestly.** You give it a fund (or your
 whole portfolio), and it tells you plainly whether to **keep it, drop it, or switch to
 something better** — and then it *shows you exactly why*, using numbers computed from real
 market data, compared against similar funds, with every term explained like you're brand new

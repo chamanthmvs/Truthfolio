@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="HPR_", extra="ignore")
 
     # --- Server ---
-    app_name: str = "Honest Portfolio Reviewer"
+    app_name: str = "Truthfolio"
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     # --- Data sources (all free/public) ---

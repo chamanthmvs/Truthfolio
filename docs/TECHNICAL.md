@@ -1,4 +1,4 @@
-# Honest Portfolio Reviewer — Technical Document
+# Truthfolio — Technical Document
 
 > Internal engineering reference and build plan. For the public overview, see the
 > [README](../README.md).

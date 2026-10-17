@@ -228,7 +228,7 @@ function Header() {
         </svg>
       </div>
       <span className="text-sm font-semibold tracking-tight text-ink">
-        Honest Portfolio Reviewer
+        Truthfolio
       </span>
     </div>
   );

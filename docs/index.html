@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Truthfolio — honest, evidence-backed fund verdicts</title>
+<meta name="description" content="The honest truth about your mutual funds. Continue, Stop, or Shift — every verdict computed from real data, ranked against peers, and explained in plain English." />
+<meta property="og:title" content="Truthfolio — honest, evidence-backed fund verdicts" />
+<meta property="og:description" content="Should you keep that fund, drop it, or switch? The honest answer, backed by evidence, explained in plain English." />
+<meta property="og:type" content="website" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#07090f; --ink:#e8ecf4; --ink-dim:#9aa6bd; --ink-faint:#64708a;
+    --line:rgba(255,255,255,.09); --line-strong:rgba(255,255,255,.14);
+    --positive:#34d399; --caution:#fbbf24; --negative:#fb7185; --brand:#7c9cff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);
+    -webkit-font-smoothing:antialiased;line-height:1.55;overflow-x:hidden;
+    background-image:
+      radial-gradient(900px 600px at 12% -10%, rgba(124,156,255,.12), transparent 60%),
+      radial-gradient(800px 520px at 100% 0%, rgba(52,211,153,.09), transparent 55%);
+    background-attachment:fixed;
+  }
+  .wrap{max-width:1000px;margin:0 auto;padding:0 20px}
+  a{color:inherit}
+  .mono{font-family:"JetBrains Mono",monospace}
+
+  /* nav */
+  nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(12px);
+    background:rgba(7,9,15,.6);border-bottom:1px solid var(--line)}
+  .nav-in{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:-.01em}
+  .brand .mark{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;
+    background:rgba(124,156,255,.18);font-size:16px}
+  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:9px 16px;
+    font-size:14px;font-weight:600;text-decoration:none;transition:.15s;border:1px solid var(--line-strong)}
+  .btn-primary{background:var(--brand);color:#07090f;border-color:transparent}
+  .btn-primary:hover{filter:brightness(1.1)}
+  .btn-ghost{color:var(--ink-dim)}
+  .btn-ghost:hover{color:var(--ink);border-color:var(--ink-faint)}
+
+  /* hero */
+  header.hero{padding:88px 0 64px;text-align:center}
+  .chip{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-dim);
+    border:1px solid var(--line);border-radius:999px;padding:6px 14px;margin-bottom:28px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--positive);box-shadow:0 0 10px var(--positive)}
+  h1{font-size:clamp(2.1rem,6vw,3.6rem);font-weight:800;letter-spacing:-.03em;line-height:1.05;
+    max-width:18ch;margin:0 auto}
+  .sub{margin:22px auto 0;max-width:56ch;font-size:clamp(1rem,2.4vw,1.2rem);color:var(--ink-dim)}
+  .verdicts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:30px 0 34px}
+  .verdict{font-weight:700;font-size:14px;border-radius:999px;padding:8px 18px}
+  .v-cont{color:var(--positive);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3)}
+  .v-stop{color:var(--negative);background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.3)}
+  .v-shift{color:var(--caution);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3)}
+  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+  /* sections */
+  section{padding:56px 0}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brand);margin-bottom:12px;text-align:center}
+  h2{font-size:clamp(1.5rem,4vw,2.1rem);font-weight:700;letter-spacing:-.02em;text-align:center;max-width:22ch;margin:0 auto}
+  .lede{text-align:center;color:var(--ink-dim);max-width:56ch;margin:16px auto 0}
+
+  .grid{display:grid;gap:16px;margin-top:40px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:760px){.g3,.g2{grid-template-columns:1fr}}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015));
+    border:1px solid var(--line);border-radius:18px;padding:26px}
+  .card .ico{font-size:24px;margin-bottom:14px;display:block}
+  .card h3{font-size:1.15rem;font-weight:700;margin-bottom:8px}
+  .card p{color:var(--ink-dim);font-size:.95rem}
+  .card ul{list-style:none;margin-top:14px;display:grid;gap:9px}
+  .card li{display:flex;gap:10px;color:var(--ink-dim);font-size:.93rem}
+  .card li::before{content:"";margin-top:8px;width:6px;height:6px;border-radius:50%;background:var(--brand);flex:none}
+
+  /* flow */
+  .flow{display:flex;align-items:stretch;gap:14px;margin-top:40px;flex-wrap:wrap;justify-content:center}
+  .step{flex:1;min-width:180px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015));
+    border:1px solid var(--line);border-radius:16px;padding:22px;text-align:center}
+  .step .n{font-family:"JetBrains Mono",monospace;color:var(--brand);font-weight:600;font-size:13px}
+  .step h4{margin:8px 0 6px;font-size:1rem}
+  .step p{color:var(--ink-faint);font-size:.86rem}
+
+  /* versions */
+  .ver{display:flex;gap:16px;align-items:flex-start;padding:22px 24px;border:1px solid var(--line);
+    border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015));margin-top:14px}
+  .badge{flex:none;font-size:12px;font-weight:700;border-radius:8px;padding:5px 11px;margin-top:2px}
+  .b-done{color:var(--positive);background:rgba(52,211,153,.14)}
+  .b-prog{color:var(--caution);background:rgba(251,191,36,.14)}
+  .ver h3{font-size:1.05rem;margin-bottom:5px}
+  .ver p{color:var(--ink-dim);font-size:.93rem}
+  .loadbar{height:8px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:12px;max-width:280px}
+  .loadbar>i{display:block;height:100%;width:38%;border-radius:999px;
+    background:linear-gradient(90deg,var(--brand),var(--positive));animation:load 2.4s ease-in-out infinite}
+  @keyframes load{0%{width:12%}50%{width:62%}100%{width:12%}}
+
+  /* promises band */
+  .band{background:linear-gradient(180deg,rgba(124,156,255,.06),transparent);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+
+  footer{border-top:1px solid var(--line);padding:40px 0 60px;color:var(--ink-faint);font-size:.86rem;text-align:center}
+  footer .disc{max-width:60ch;margin:0 auto 18px}
+  .reveal{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s cubic-bezier(.22,1,.36,1)}
+  .reveal.in{opacity:1;transform:none}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-in">
+    <div class="brand"><span class="mark">⚖️</span> Truthfolio</div>
+    <a class="btn btn-ghost" href="https://github.com/chamanthmvs/Truthfolio" target="_blank" rel="noopener">View on GitHub →</a>
+  </div>
+</nav>
+
+<header class="hero wrap">
+  <span class="chip"><span class="dot"></span> Honest · Evidence-backed · Plain English</span>
+  <h1>Should you keep that fund, drop it, or switch?</h1>
+  <p class="sub">Truthfolio gives you the honest answer about your mutual funds — computed from real market data, ranked against similar funds, and explained so clearly that anyone can follow the <em>why</em>.</p>
+  <div class="verdicts">
+    <span class="verdict v-cont">Continue</span>
+    <span class="verdict v-stop">Stop</span>
+    <span class="verdict v-shift">Shift</span>
+  </div>
+  <div class="cta">
+    <a class="btn btn-primary" href="https://github.com/chamanthmvs/Truthfolio" target="_blank" rel="noopener">Explore the code</a>
+    <a class="btn btn-ghost" href="#how">See how it works</a>
+  </div>
+</header>
+
+<!-- Promises -->
+<div class="band">
+<section class="wrap reveal">
+  <div class="eyebrow">What makes it different</div>
+  <h2>Built on three promises</h2>
+  <p class="lede">Most tools either flatter every fund or drown you in numbers. Truthfolio does neither.</p>
+  <div class="grid g3">
+    <div class="card">
+      <span class="ico">🫡</span>
+      <h3>Full honesty</h3>
+      <p>If a fund is weak, we say so — even if it made you money. A fund that's up can still be a bad place for your money when better options exist.</p>
+    </div>
+    <div class="card">
+      <span class="ico">🧾</span>
+      <h3>Evidence-based</h3>
+      <p>Every claim traces back to a real, computed number. Expand any verdict to see its sources and exactly how much each one is trusted.</p>
+    </div>
+    <div class="card">
+      <span class="ico">🧒</span>
+      <h3>Explained simply</h3>
+      <p>Every metric comes with an everyday-analogy explanation. “Was the bumpy ride worth it?” instead of “risk-adjusted return.”</p>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- What you can do -->
+<section class="wrap reveal">
+  <div class="eyebrow">What you can do</div>
+  <h2>Review one fund, or your whole portfolio</h2>
+  <div class="grid g2">
+    <div class="card">
+      <span class="ico">🔍</span>
+      <h3>Review a single fund</h3>
+      <p>Search any real, registered scheme and get the full picture:</p>
+      <ul>
+        <li>A clear Continue / Stop / Shift verdict, health score and confidence</li>
+        <li>Returns, risk and consistency — each in plain English</li>
+        <li>How it ranks against similar funds</li>
+        <li>An evidence ledger you can open to see the proof</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="ico">📊</span>
+      <h3>Review your portfolio</h3>
+      <p>Add your holdings with units and average buy price, and see:</p>
+      <ul>
+        <li>Your real gain/loss and return, per fund and overall</li>
+        <li>A portfolio health score and verdict</li>
+        <li>Where your money sits, and if you're over-concentrated</li>
+        <li>Your best and worst performers, and what to reconsider</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<div class="band" id="how">
+<section class="wrap reveal">
+  <div class="eyebrow">How it works</div>
+  <h2>A verdict that's earned, not guessed</h2>
+  <div class="flow">
+    <div class="step"><div class="n">01</div><h4>Pull real data</h4><p>Official NAV history for every fund, from public sources.</p></div>
+    <div class="step"><div class="n">02</div><h4>Compute the numbers</h4><p>Returns, risk and consistency — calculated, never guessed.</p></div>
+    <div class="step"><div class="n">03</div><h4>Rank vs peers</h4><p>Measured against similar funds, not judged in isolation.</p></div>
+    <div class="step"><div class="n">04</div><h4>Weigh the evidence</h4><p>A transparent score turns the facts into an honest verdict.</p></div>
+  </div>
+</section>
+</div>
+
+<!-- Versions -->
+<section class="wrap reveal">
+  <div class="eyebrow">Progress</div>
+  <h2>Where the project is</h2>
+  <div class="ver">
+    <span class="badge b-done">V1 ✓</span>
+    <div><h3>Single-fund review</h3><p>Validated fund search, full metrics with plain-English explanations, peer ranking, a transparent health score and Continue/Stop/Shift verdict, and an inspectable evidence ledger.</p></div>
+  </div>
+  <div class="ver">
+    <span class="badge b-done">V2 ✓</span>
+    <div><h3>Whole-portfolio review</h3><p>Add your holdings, see personal returns per fund, a portfolio health score and verdict, your category mix and concentration, best/worst performers, and a what-to-reconsider list — with drill-down into any fund.</p></div>
+  </div>
+  <div class="ver">
+    <span class="badge b-prog">Next</span>
+    <div><h3>Future versions</h3><p>In progress… loading.</p><div class="loadbar"><i></i></div></div>
+  </div>
+</section>
+
+<footer>
+  <p class="disc">Truthfolio is educational analysis, not personalised investment advice. Verdicts are based on past performance, which never guarantees future results — and we're transparent about what we don't yet factor in.</p>
+  <p>Built for investors who'd rather hear the truth. · <a href="https://github.com/chamanthmvs/Truthfolio" target="_blank" rel="noopener" style="color:var(--ink-dim)">GitHub</a></p>
+</footer>
+
+<script>
+  // subtle reveal-on-scroll
+  const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

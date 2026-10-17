@@ -6,9 +6,9 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swa
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Honest Portfolio Reviewer",
+  title: "Truthfolio — honest, evidence-backed fund verdicts",
   description:
-    "An evidence-backed, brutally honest reviewer for your mutual-fund holdings. Continue, Stop, or Shift — every verdict defended by data.",
+    "The honest truth about your mutual funds. Continue, Stop, or Shift — every verdict computed from real data, ranked against peers, and explained in plain English.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
