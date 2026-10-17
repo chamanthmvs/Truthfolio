@@ -1,11 +1,14 @@
 <div align="center">
 
-# 🪬 Honest Portfolio Reviewer
+# ⚖️ Honest Portfolio Reviewer
 
-### A brutally honest, evidence-backed second opinion on your mutual funds.
+### Should you keep that fund, drop it, or switch to something better?
 
-**Continue · Stop · Shift** — and every verdict is backed by real data, ranked against peers,
-and explained in plain words anyone can understand.
+**Get the honest answer — not a sales pitch.**
+Every verdict is computed from real market data, measured against similar funds, and explained
+so plainly that anyone can follow the *why* — not just finance pros.
+
+**`Continue`  ·  `Stop`  ·  `Shift`**
 
 </div>
 
