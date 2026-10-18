@@ -78,7 +78,7 @@ async def research(scheme_code: str = Query(...)):
     """On-demand web research for ONE fund. This is the only path that spends Tavily credits,
     and only when the user explicitly asks for it. Returns cited claims + numbered sources,
     or a clear 'disabled' flag when keys aren't configured."""
-    from app.agent import research as research_agent
+    from app.agent.graph import research_fund
     from app.config import get_settings
     from app.data import websearch
 
@@ -90,17 +90,17 @@ async def research(scheme_code: str = Query(...)):
     if not settings.research_enabled:
         return {
             "enabled": False,
-            "reason": "Web research needs both an Anthropic key and a Tavily key configured.",
+            "reason": "Web research needs both an LLM key and a Tavily key configured.",
             "evidence": [], "footnotes": [], "budget": websearch.budget_status(),
         }
-    result = await research_agent.run_fund_research(
-        scheme_name=scheme.name, base_name=scheme.base_name,
-        amc=scheme.amc, category=scheme.category,
+    state = await research_fund(
+        scheme_code=scheme.code, scheme_name=scheme.name,
+        base_name=scheme.base_name, amc=scheme.amc, category=scheme.category,
     )
     return {
         "enabled": True,
-        "evidence": result["evidence"],
-        "footnotes": result["footnotes"],
+        "evidence": state.get("research_evidence", []),
+        "footnotes": state.get("footnotes", []),
         "budget": websearch.budget_status(),
     }
 
@@ -182,6 +182,7 @@ async def review_stream(scheme_code: str = Query(...)):
 
         graph = build_graph()
         initial = {
+            "task": "fund_review", "plan": None,
             "scheme_code": scheme.code, "scheme_name": scheme.name,
             "base_name": scheme.base_name, "amc": scheme.amc,
             "category": scheme.category, "steps": [],

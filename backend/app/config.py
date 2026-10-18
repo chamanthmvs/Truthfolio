@@ -11,6 +11,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,10 +38,23 @@ class Settings(BaseSettings):
     # --- Risk-free rate used for Sharpe/Sortino (annualised, India ~ short-term G-Sec) ---
     risk_free_rate: float = 0.065
 
-    # --- LLM (reasoning layer: narrative, research extraction, insights, market pulse) ---
-    anthropic_api_key: str | None = None
-    llm_model: str = "claude-opus-4-8"
+    # --- LLM (multi-provider reasoning layer: narrative, research, insights, market) ---
+    # Provider-switchable via LLM_PROVIDER ("anthropic" | "groq"). Keys are read from the
+    # standard, un-prefixed names (ANTHROPIC_API_KEY / GROQ_API_KEY) as well as HPR_-prefixed
+    # fallbacks, so common env conventions just work.
+    llm_provider: str = Field(
+        "anthropic", validation_alias=AliasChoices("LLM_PROVIDER", "HPR_LLM_PROVIDER")
+    )
+    llm_model: str = Field(
+        "claude-opus-4-8", validation_alias=AliasChoices("LLM_MODEL", "HPR_LLM_MODEL")
+    )
     llm_max_tokens: int = 4096
+    anthropic_api_key: str | None = Field(
+        None, validation_alias=AliasChoices("ANTHROPIC_API_KEY", "HPR_ANTHROPIC_API_KEY")
+    )
+    groq_api_key: str | None = Field(
+        None, validation_alias=AliasChoices("GROQ_API_KEY", "HPR_GROQ_API_KEY")
+    )
 
     # --- Web search (Tavily) for the evidence-research + market-pulse agents ---
     # Credit-conservative defaults: research is ON-DEMAND (never automatic), uses "basic"
@@ -53,8 +67,16 @@ class Settings(BaseSettings):
     search_daily_cap: int = 60  # safety valve: max Tavily network calls per day, app-wide
 
     @property
+    def is_groq(self) -> bool:
+        return self.llm_provider.strip().lower() == "groq"
+
+    @property
+    def active_llm_key(self) -> str | None:
+        return self.groq_api_key if self.is_groq else self.anthropic_api_key
+
+    @property
     def llm_enabled(self) -> bool:
-        return bool(self.anthropic_api_key)
+        return bool(self.active_llm_key)
 
     @property
     def search_enabled(self) -> bool:

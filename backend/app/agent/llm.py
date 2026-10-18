@@ -60,15 +60,9 @@ analysis and not personalised investment advice, and that it is based on past NA
 
 
 async def write_narrative(state: AgentState) -> dict:
-    settings = get_settings()
-    from langchain_anthropic import ChatAnthropic
+    from app.agent.llm_provider import get_chat_model
 
-    llm = ChatAnthropic(
-        model=settings.llm_model,
-        api_key=settings.anthropic_api_key,
-        max_tokens=settings.llm_max_tokens,
-        temperature=0.2,
-    )
+    llm = get_chat_model(temperature=0.2)
 
     payload = {
         "fund": state.get("scheme_name"),

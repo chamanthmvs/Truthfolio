@@ -122,6 +122,9 @@
   .pill{font-size:13px;font-weight:600;color:var(--ink-dim);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 12px}
   .codecard{background:#0f1115;border-radius:16px;padding:20px 22px;box-shadow:var(--sh);overflow:auto}
   .codecard pre{font-family:"SFMono-Regular",ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.7;color:#d7dbe3;white-space:pre}
+  .diagram{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--sh-sm);overflow-x:auto;margin-top:26px}
+  .diagram pre.mermaid{margin:0;text-align:center}
+  .dcap{text-align:center;color:var(--ink-faint);font-size:.86rem;margin-top:12px;max-width:62ch;margin-left:auto;margin-right:auto}
   .c-k{color:#7fd1b9}.c-s{color:#e6b98a}.c-c{color:#6b7488}.c-p{color:#8fb8ff}
   .devlist{list-style:none;display:grid;gap:12px;margin-top:20px}
   .devlist li{display:flex;gap:11px;color:var(--ink-dim);font-size:.96rem}
@@ -310,16 +313,17 @@
   <div class="dev">
     <div>
       <ul class="devlist">
-        <li>⚙️ <span><b>Python + FastAPI</b> backend running a <b>LangGraph</b> pipeline: <span class="mono">quant → peers → evidence → synthesis → narrative</span>.</span></li>
+        <li>🧭 <span><b>Supervisor / orchestrator</b> (LangGraph) coordinates focused specialist agents — quant, research, verdict, narrator — one at a time, plan-driven and auditable.</span></li>
         <li>📈 <span><b>Deterministic quant core</b> — returns, rolling returns, volatility, Sharpe, Sortino, drawdown — computed with NumPy/Pandas from real NAV data.</span></li>
-        <li>🧾 <span><b>Evidence ledger + source-reliability gate</b>: every claim carries its source and a 0–1 trust score.</span></li>
-        <li>🎛️ <span><b>Transparent weighted scoring</b> turns metrics + peer ranks into a 0–100 health score and the final verdict.</span></li>
-        <li>🖥️ <span><b>Next.js + TypeScript</b> frontend streaming the reasoning live over Server-Sent Events.</span></li>
-        <li>🆓 <span>Runs on <b>free, public data</b> (AMFI + mfapi) — the core needs no API keys.</span></li>
+        <li>🔎 <span><b>On-demand web research</b> (Tavily) → source-reliability gate → LLM extracts <b>cited</b> claims with inline <span class="mono">[n]</span> footnotes. Strict credit controls.</span></li>
+        <li>🎛️ <span><b>Transparent weighted scoring</b> turns metrics + peer ranks into a 0–100 health score and the Continue / Stop / Shift verdict.</span></li>
+        <li>🔌 <span><b>Provider-switchable LLM</b> (Claude via Anthropic, or Groq) behind one factory — the whole app switches with a single env var. It only explains; it never overrules the score.</span></li>
+        <li>🖥️ <span><b>Next.js + TypeScript</b> frontend streaming the reasoning live over Server-Sent Events. Core runs on <b>free public data</b> (AMFI + mfapi).</span></li>
       </ul>
       <div class="stackrow">
         <span class="pill">Python</span><span class="pill">FastAPI</span><span class="pill">LangGraph</span>
-        <span class="pill">NumPy</span><span class="pill">Pandas</span><span class="pill">Next.js</span>
+        <span class="pill">NumPy</span><span class="pill">Pandas</span><span class="pill">Tavily</span>
+        <span class="pill">Claude / Groq</span><span class="pill">Next.js</span>
         <span class="pill">TypeScript</span><span class="pill">Tailwind</span>
       </div>
       <div style="margin-top:22px">
@@ -347,6 +351,51 @@
   </div>
 </section>
 
+<!-- Architecture -->
+<div class="band">
+<section class="wrap reveal">
+  <div class="kick">Architecture</div>
+  <h2 class="serif">How it&apos;s built</h2>
+  <p class="lede">A <strong>supervisor</strong> coordinates focused specialist agents over free public data — and, only when you ask, the web. Deterministic where it matters; AI only where it genuinely helps.</p>
+
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart LR
+    U([You]) --> FE[Web app]
+    FE --> API[API]
+    API --> SUP(("Supervisor"))
+    SUP --> Q["Quant<br/>metrics &amp; peers"]
+    SUP --> R["Research<br/>web + citations"]
+    SUP --> V["Verdict<br/>transparent score"]
+    SUP --> N["Narrator<br/>plain English"]
+    Q --> D[("AMFI · mfapi")]
+    R --> W[("Web · LLM")]
+    N --> W
+    classDef p fill:#eef6f2,stroke:#0e7c5a,color:#15171c;
+    class D,W p;
+    </pre>
+  </div>
+  <p class="dcap">One API, one supervisor. It calls the right specialists in turn — crunch the numbers, (optionally) research the web, score the verdict, write it up — then streams the result back.</p>
+
+  <div class="diagram">
+    <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant You
+    participant Truthfolio
+    participant Data as AMFI / mfapi
+    You->>Truthfolio: Review this fund
+    Truthfolio->>Data: Pull real NAV history
+    Data-->>Truthfolio: daily NAVs
+    Truthfolio->>Truthfolio: compute metrics, rank vs peers
+    Truthfolio->>Truthfolio: transparent score → Continue / Stop / Shift
+    Truthfolio-->>You: honest verdict + evidence (plain English)
+    </pre>
+  </div>
+  <p class="dcap">A standard review is fully deterministic and spends zero web-search credits — the verdict is earned from real data, not guessed.</p>
+</section>
+</div>
+
 <!-- Versions -->
 <div class="band">
 <section class="wrap reveal">
@@ -359,6 +408,10 @@
   <div class="ver">
     <span class="badge b-done">V2 ✓</span>
     <div><h3>Whole-portfolio review</h3><p>Add your holdings, see personal returns per fund, a portfolio health score and verdict, your category mix and concentration, best/worst performers, and a what-to-reconsider list — with drill-down into any fund.</p></div>
+  </div>
+  <div class="ver">
+    <span class="badge b-done">V3 ✓</span>
+    <div><h3>Web research + multi-agent</h3><p>On-demand web research that cites its sources, a supervisor-orchestrated multi-agent engine, and a provider-switchable LLM (Claude or Groq) — all with strict credit controls.</p></div>
   </div>
   <div class="ver">
     <span class="badge b-prog">Next</span>
@@ -375,6 +428,28 @@
 <script>
   const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.1});
   document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({
+    startOnLoad: true,
+    securityLevel: "strict",
+    theme: "base",
+    themeVariables: {
+      fontFamily: "Inter, system-ui, sans-serif",
+      primaryColor: "#eef6f2",
+      primaryBorderColor: "#0e7c5a",
+      primaryTextColor: "#15171c",
+      lineColor: "#9aa0ac",
+      secondaryColor: "#ffffff",
+      tertiaryColor: "#f7f8fa",
+      actorBkg: "#eef6f2",
+      actorBorder: "#0e7c5a",
+      actorTextColor: "#15171c",
+      noteBkgColor: "#fff8ec",
+      noteBorderColor: "#b45309",
+    },
+  });
 </script>
 </body>
 </html>

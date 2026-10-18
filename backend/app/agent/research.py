@@ -134,16 +134,10 @@ async def run_fund_research(*, scheme_name: str, base_name: str, amc: str, categ
 
 
 async def _extract_claims(scheme_name: str, category: str, context_lines: list[str]) -> list[dict]:
-    settings = get_settings()
     try:
-        from langchain_anthropic import ChatAnthropic
+        from app.agent.llm_provider import get_chat_model
 
-        llm = ChatAnthropic(
-            model=settings.llm_model,
-            api_key=settings.anthropic_api_key,
-            max_tokens=settings.llm_max_tokens,
-            temperature=0.1,
-        )
+        llm = get_chat_model(temperature=0.1)
         user = (
             f"Fund: {scheme_name} (category: {category}).\n\n"
             f"SOURCES (cite by the number in brackets):\n\n" + "\n\n".join(context_lines)

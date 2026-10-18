@@ -1,57 +1,48 @@
-"""LangGraph assembly for the single-fund honest review.
+"""Public entry points for the agent layer.
 
-The graph is intentionally linear for V1 (quant → peers → evidence → synthesis → narrative)
-because each stage depends on the previous one's output. The web-research + source-appraisal
-fan-out (already scaffolded in appraisal.py) plugs in between `peers` and `build_evidence`
-in a later version without reshaping the rest.
+The orchestration now lives in the supervisor (see supervisor.py). This module keeps the
+stable, high-level functions the API calls — `review_fund`, `research_fund`, and
+`build_graph` (the compiled supervisor, used by the SSE stream) — so the rest of the app is
+decoupled from the graph's internals.
 """
 
 from __future__ import annotations
 
-from functools import lru_cache
-
-from langgraph.graph import END, START, StateGraph
-
-from app.agent import nodes
 from app.agent.state import AgentState
+from app.agent.supervisor import build_supervisor, run_task
 
-
-@lru_cache
-def build_graph():
-    # NOTE: web research is deliberately NOT in this graph. The standard review is 100%
-    # deterministic and free (no Tavily credits). Web research is a separate, explicit,
-    # user-triggered action (see /api/research) so limited credits are only ever spent on
-    # purpose, one fund at a time.
-    g = StateGraph(AgentState)
-    g.add_node("gather_quant", nodes.gather_quant)
-    g.add_node("gather_peers", nodes.gather_peers)
-    g.add_node("build_evidence", nodes.build_evidence)
-    g.add_node("synthesise", nodes.synthesise)
-    g.add_node("narrate", nodes.narrate)
-
-    g.add_edge(START, "gather_quant")
-    g.add_edge("gather_quant", "gather_peers")
-    g.add_edge("gather_peers", "build_evidence")
-    g.add_edge("build_evidence", "synthesise")
-    g.add_edge("synthesise", "narrate")
-    g.add_edge("narrate", END)
-    return g.compile()
+# The compiled supervisor graph (SSE streaming uses this directly via .astream).
+build_graph = build_supervisor
 
 
 async def review_fund(
     scheme_code: str, scheme_name: str, category: str = "",
     base_name: str = "", amc: str = "",
     units: float | None = None, invested_amount: float | None = None,
+    deep: bool = False,
 ) -> AgentState:
-    graph = build_graph()
-    initial: AgentState = {
-        "scheme_code": scheme_code,
-        "scheme_name": scheme_name,
-        "base_name": base_name or scheme_name,
-        "amc": amc,
-        "category": category,
-        "units": units,
-        "invested_amount": invested_amount,
-        "steps": [],
-    }
-    return await graph.ainvoke(initial)
+    """Standard fund review (deterministic, free). `deep=True` also runs web research."""
+    return await run_task(
+        "fund_review_deep" if deep else "fund_review",
+        scheme_code=scheme_code,
+        scheme_name=scheme_name,
+        base_name=base_name or scheme_name,
+        amc=amc,
+        category=category,
+        units=units,
+        invested_amount=invested_amount,
+    )
+
+
+async def research_fund(
+    scheme_code: str, scheme_name: str, base_name: str = "", amc: str = "", category: str = "",
+) -> AgentState:
+    """Run ONLY the web-research specialist for one fund (the on-demand, credit-spending path)."""
+    return await run_task(
+        "research_only",
+        scheme_code=scheme_code,
+        scheme_name=scheme_name,
+        base_name=base_name or scheme_name,
+        amc=amc,
+        category=category,
+    )

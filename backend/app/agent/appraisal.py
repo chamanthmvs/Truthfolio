@@ -35,6 +35,13 @@ _AUTHORITATIVE = {
     "livemint.com": 0.7,
     "business-standard.com": 0.7,
     "moneycontrol.com": 0.65,
+    # widely-used fund-data platforms (good for factual data points like TER/AUM)
+    "tickertape.in": 0.62,
+    "etmoney.com": 0.6,
+    "groww.in": 0.6,
+    "kuvera.in": 0.6,
+    "zerodha.com": 0.62,
+    "advisorkhoj.com": 0.58,
 }
 _DEFAULT_WEB_TRUST = 0.4  # unknown domain: allowed in, but deliberately low
 

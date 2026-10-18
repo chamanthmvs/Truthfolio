@@ -57,6 +57,11 @@ class AgentState(TypedDict, total=False):
     narrative: str  # the honest written assessment
     caveats: list[str]
 
+    # --- supervisor/orchestrator control ---
+    task: str  # which plan the supervisor runs: "fund_review" | "fund_review_deep" | "research_only"
+    plan: list[str] | None  # remaining specialist steps (supervisor-managed)
+    _next: str | None  # next specialist to route to (supervisor-managed)
+
     # --- bookkeeping ---
     steps: list[str]  # progress trail for streaming to the UI
     llm_used: bool

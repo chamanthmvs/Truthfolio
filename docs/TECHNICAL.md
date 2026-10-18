@@ -112,84 +112,177 @@ cd frontend && npx tsc --noEmit                 # type safety
 
 ## 4. Configuration
 
-All backend settings live in `backend/app/config.py` and are overridable via environment
-variables (prefix `HPR_`) or a `backend/.env` file. See `backend/.env.example`.
+Settings live in `backend/app/config.py` (env-overridable, `backend/.env`). App-specific
+settings use the `HPR_` prefix; standard provider keys are read from their conventional names.
 
-| Variable                   | Default                                  | Purpose                                              |
-| -------------------------- | ---------------------------------------- | ---------------------------------------------------- |
-| `HPR_ANTHROPIC_API_KEY`    | *(unset)*                                | Enables the optional Claude narrative. If unset, a transparent deterministic summary is used. |
-| `HPR_LLM_MODEL`            | `claude-opus-4-8`                        | Model id for the narrative.                          |
-| `HPR_RISK_FREE_RATE`       | `0.065`                                  | Annualised risk-free rate for Sharpe/Sortino (India short-term G-Sec ≈ 6.5%). |
-| `HPR_AMFI_MASTER_TTL_HOURS`| `24`                                     | Cache lifetime for the scheme master.                |
-| `HPR_NAV_TTL_HOURS`        | `12`                                     | Cache lifetime for per-fund NAV history.             |
-| `HPR_CORS_ORIGINS`         | `http://localhost:3000`, `127.0.0.1:3000`| Allowed frontend origins.                            |
+| Variable            | Default            | Purpose                                                        |
+| ------------------- | ------------------ | -------------------------------------------------------------- |
+| `LLM_PROVIDER`      | `anthropic`        | Reasoning backend: `anthropic` (Claude) or `groq`.             |
+| `LLM_MODEL`         | `claude-opus-4-8`  | Model id for the active provider.                              |
+| `ANTHROPIC_API_KEY` | *(unset)*          | Claude key. Enables LLM narrative + research when provider=anthropic. |
+| `GROQ_API_KEY`      | *(unset)*          | Groq key, used when provider=groq.                             |
+| `HPR_TAVILY_API_KEY`| *(unset)*          | Tavily web-search key. Needed (with an LLM key) for research.  |
+| `HPR_SEARCH_DEPTH`  | `basic`            | `basic` (1 credit) or `advanced` (2) — cost control.           |
+| `HPR_SEARCH_DAILY_CAP` | `60`            | Hard app-wide ceiling on Tavily calls/day.                     |
+| `HPR_RISK_FREE_RATE`| `0.065`            | Annualised risk-free rate for Sharpe/Sortino (≈ India G-Sec).  |
 
-Frontend: `NEXT_PUBLIC_API_BASE` (default `http://localhost:8077/api`) points the web app at
-the backend.
+Without an LLM key the app uses transparent deterministic text; without Tavily (or the LLM)
+web research cleanly no-ops. Frontend: `NEXT_PUBLIC_API_BASE` (default
+`http://localhost:8077/api`) points the web app at the backend.
 
 ---
 
 ## 5. System architecture
 
+The system has three tiers: a **Next.js frontend**, a **FastAPI** edge, and a
+**supervisor-orchestrated agent layer** that coordinates focused specialists over free
+public data (and, on demand, the web). The LLM is used *only inside* the specialists that
+need it; orchestration and scoring are deterministic.
+
+```mermaid
+flowchart TB
+    subgraph FE["🖥️  Frontend — Next.js / React / TypeScript"]
+        SB["SearchBar"] --> API
+        PB["PortfolioBuilder"] --> API
+        RV["FundReview · PortfolioOverview\nResearchPanel · Citations"]
+    end
+
+    API{{"FastAPI  ·  app/api/routes.py\nREST + Server-Sent Events"}}
+
+    subgraph AGENT["🧠  Agent layer"]
+        SUP(("Supervisor\n(orchestrator)"))
+        QUANT["Quant specialist\nmetrics · peers"]
+        RESEARCH["Research specialist\nsearch · appraise · cite"]
+        VERDICT["Verdict specialist\nscore · synthesise"]
+        NARRATE["Narrator\nLLM or template"]
+        SUP --> QUANT --> SUP
+        SUP --> RESEARCH --> SUP
+        SUP --> VERDICT --> SUP
+        SUP --> NARRATE --> SUP
+    end
+
+    subgraph DATA["📦  Data & providers"]
+        AMFI[("AMFI\nNAVAll.txt")]
+        MFAPI[("mfapi.in\nNAV history")]
+        TAVILY[("Tavily\nweb search")]
+        LLM[("LLM\nClaude / Groq")]
+    end
+
+    API <-->|SSE / JSON| FE
+    API --> SUP
+    QUANT --> AMFI
+    QUANT --> MFAPI
+    RESEARCH --> TAVILY
+    RESEARCH --> LLM
+    NARRATE --> LLM
+    SUP -->|final state| API
+
+    classDef prov fill:#eef6f2,stroke:#0e7c5a,color:#15171c;
+    class AMFI,MFAPI,TAVILY,LLM prov;
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│  FRONTEND  — Next.js 15 / React 19 / TypeScript / Tailwind / Framer Motion │
-│                                                                            │
-│   Tab "Review a fund"            Tab "My portfolio"                         │
-│     SearchBar ──► streamReview     PortfolioBuilder ──► streamPortfolio     │
-│                      │                                     │                │
-│     ThinkingStream (live SSE)      PortfolioOverview + HoldingsTable        │
-│     FundReview ◄──────────────────────── drill-down ───────┘               │
-│   lib/api.ts (fetch + manual SSE parsing), lib/types.ts, lib/format.ts     │
-└───────────────────────────────┬────────────────────────────────────────────┘
-                 REST + Server-Sent Events (SSE)
-┌───────────────────────────────▼────────────────────────────────────────────┐
-│  BACKEND  — FastAPI (app/api/routes.py)                                      │
-│                                                                              │
-│  data/        amfi.py      scheme master: fetch, parse, index, fuzzy search  │
-│               navapi.py    mfapi.in NAV history (+ concurrency semaphore)    │
-│               cache.py     TTL file cache                                    │
-│                                                                              │
-│  analysis/    metrics.py      deterministic quant (pure functions)           │
-│               peers.py         peer selection + percentile ranking            │
-│               portfolio.py     personal returns + portfolio aggregation       │
-│               explainers.py    child-level explainer catalog (the USP)        │
-│               review_view.py   shared fund-review assembler                   │
-│                                                                              │
-│  agent/       graph.py        LangGraph: quant→peers→evidence→synth→narrate  │
-│               state.py         graph state + evidence model                   │
-│               nodes.py         node implementations                           │
-│               verdict.py       transparent weighted scoring + verdict         │
-│               appraisal.py     source-reliability gate                        │
-│               portfolio.py     portfolio orchestrator (per-fund fan-out)      │
-│               llm.py           optional Claude narrative (evidence-bound)     │
-└──────────────────────────────────────────────────────────────────────────────┘
-          Data sources (free/public):  AMFI NAVAll.txt  ·  api.mfapi.in
-```
+
+**Reading it (plain version):** the page talks to one API. The API hands the request to a
+*supervisor* that calls the right specialists in turn — one crunches the numbers, one (only
+when asked) researches the web, one scores the verdict, one writes it up — then streams the
+result back so you watch it happen.
 
 ---
 
 ## 6. Request lifecycle
 
-### Single-fund review (`GET /api/review/stream`)
+### The supervisor's plan (how work is routed)
+
+The supervisor owns an ordered **plan** per task and dispatches one specialist at a time; each
+returns to the supervisor until the plan is empty. Adding a feature = adding a plan, not
+rewiring.
+
+```mermaid
+flowchart LR
+    START([request]) --> S{{Supervisor\npicks next step}}
+    S -->|gather_quant| Q[Quant] --> S
+    S -->|gather_peers| P[Peers] --> S
+    S -->|gather_research*| R[Research] --> S
+    S -->|build_evidence| E[Evidence] --> S
+    S -->|synthesise| V[Verdict] --> S
+    S -->|narrate| N[Narrator] --> S
+    S -->|plan empty| DONE([result])
+    R -.->|*deep / on-demand only| R
 ```
-Client picks a scheme (real AMFI code from /search)
-   └─► SSE opens
-        ├─ node gather_quant   → fetch NAV, compute 8 metrics + rolling returns   → emit "step"
-        ├─ node gather_peers   → build peer set, compute metrics, rank percentile  → emit "step"
-        ├─ node build_evidence → turn metrics+peers into primary evidence items    → emit "step"
-        ├─ node synthesise     → weighted health score → verdict + confidence       → emit "step"
-        └─ node narrate        → deterministic or Claude narrative                   → emit "step"
-   └─► assemble_review(...)  → emit "result" (full ReviewResponse)
+`fund_review` plan = quant → peers → evidence → verdict → narrate (free).
+`fund_review_deep` inserts **research** before evidence. `research_only` runs just research.
+
+### Sequence — standard fund review (`GET /api/review/stream`, free)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as Browser
+    participant API as FastAPI
+    participant S as Supervisor
+    participant Q as Quant
+    participant V as Verdict
+    participant N as Narrator
+    participant LLM as LLM (Claude/Groq)
+
+    U->>API: GET /review/stream?scheme_code
+    API->>S: run_task("fund_review")
+    S->>Q: metrics + peers (AMFI/mfapi)
+    Q-->>API: step events (SSE)
+    S->>V: health score + Continue/Stop/Shift
+    V-->>API: step event
+    S->>N: write honest narrative
+    N->>LLM: evidence ledger (grounded)
+    LLM-->>N: prose (or template fallback)
+    N-->>API: step event
+    API-->>U: event: result (full review)
 ```
 
-### Portfolio review (`POST /api/portfolio/stream`)
+### Sequence — on-demand deep research (`GET /api/research`, spends credits)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as Browser
+    participant API as FastAPI
+    participant S as Supervisor
+    participant R as Research
+    participant T as Tavily
+    participant G as Appraisal gate
+    participant LLM as LLM
+
+    U->>API: GET /research?scheme_code  (explicit click)
+    API->>S: run_task("research_only")
+    S->>R: research fund
+    R->>T: 2 basic searches (budget-capped, cached)
+    T-->>R: sources + snippets
+    R->>G: appraise each source → reliability
+    G-->>R: trusted sources only (≥ floor)
+    R->>LLM: extract cited claims ([n] markers)
+    LLM-->>R: claims + citations
+    R-->>API: claims + numbered footnotes + budget
+    API-->>U: cited findings + Sources list
 ```
-Client submits holdings [{scheme_code, units, avg_nav}, ...]
-   └─► SSE opens  (emit "start" with total)
-        └─ asyncio: run analyze_holding() per fund concurrently (bounded)
-             each → full fund review + personal numbers                 → emit "holding"
-   └─► aggregate(valid)  → portfolio summary                            → emit "result"
+
+### Sequence — portfolio analysis (`POST /api/portfolio/stream`)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as Browser
+    participant API as FastAPI
+    participant O as Portfolio orchestrator
+    participant S as Supervisor (per fund)
+
+    U->>API: POST /portfolio/stream (holdings)
+    API-->>U: event: start (total)
+    par bounded concurrency
+        O->>S: review fund A → personal returns
+        O->>S: review fund B → personal returns
+        O->>S: review fund C → personal returns
+    end
+    S-->>API: each fund done → event: holding
+    O->>O: aggregate (health, mix, HHI, best/worst)
+    API-->>U: event: result (portfolio summary)
 ```
 
 ---
@@ -203,8 +296,9 @@ backend/
     main.py                FastAPI app, CORS, startup warmup of scheme master
     api/routes.py          All HTTP endpoints (REST + SSE)
     data/
-      amfi.py              Scheme master: parse NAVAll.txt, index, fuzzy search
+      amfi.py              Scheme master: parse NAVAll.txt, index, gated fuzzy search
       navapi.py            NAV history client (+ asyncio.Semaphore)
+      websearch.py         Tavily client (cached, daily-capped, no-op without key)
       cache.py             TTL file cache (JSON, best-effort)
     analysis/
       metrics.py           Pure quant functions + MetricsReport
@@ -213,22 +307,26 @@ backend/
       explainers.py        Metric meaning catalog (plain + analogy + bands)
       review_view.py       assemble_review(): the shared review dict
     agent/
+      supervisor.py        Orchestrator: plans + routes the specialists
+      graph.py             Public entry points (review_fund, research_fund, build_graph)
       state.py             AgentState (TypedDict) + EvidenceItem/SourceRef models
-      graph.py             LangGraph assembly + review_fund()
-      nodes.py             Node functions
+      nodes.py             Specialist node functions
       verdict.py           Transparent scoring + verdict synthesis
+      research.py          Web-research specialist (search → appraise → cite)
       appraisal.py         Source-reliability gate (web + computed)
-      portfolio.py         Portfolio orchestrator
-      llm.py               Optional Claude narrative
+      citations.py         Citation registry + inline [n] marker parsing
+      llm.py               LLM narrative (evidence-grounded)
+      llm_provider.py      Provider factory (Claude / Groq switch)
+      portfolio.py         Portfolio orchestrator (per-fund fan-out)
     models/schemas.py      Pydantic request/response models
-  tests/test_metrics.py    Quant contract tests
+  tests/                   test_metrics.py · test_citations.py
 frontend/
   src/
     app/layout.tsx, page.tsx, globals.css
-    components/            SearchBar, FundReview, VerdictCard, HealthGauge,
-                          MetricCard, PeerBars, RollingReturns, EvidenceLedger,
-                          ThinkingStream, PortfolioBuilder, PortfolioOverview,
-                          HoldingsTable
+    components/            SearchBar, FundReview, VerdictCard, HealthGauge, MetricCard,
+                          PeerBars, RollingReturns, EvidenceLedger, ThinkingStream,
+                          PortfolioBuilder, PortfolioOverview, HoldingsTable,
+                          ResearchPanel, Citations, BackgroundMotif
     lib/                  api.ts, types.ts, format.ts
 docs/
   TECHNICAL.md            This document
@@ -345,33 +443,56 @@ The **evidence ledger** is the spine of the honesty guarantee. Each `EvidenceIte
 list of `SourceRef`. A `SourceRef` carries `kind`, `title`, `url`, a **`reliability` score
 (0–1)**, and `reliability_reasons`. Computed evidence is primary (reliability 1.0).
 
-### 10.2 Graph — `agent/graph.py`, `agent/nodes.py`
+### 10.2 Supervisor / orchestrator — `agent/supervisor.py`, `agent/graph.py`
 
-Linear for V1 (each stage depends on the previous):
-```
-START → gather_quant → gather_peers → build_evidence → synthesise → narrate → END
-```
-The deterministic nodes always run with no credentials. `narrate` uses Claude when a key is
-configured, else a transparent template; LLM failure falls back to the template — the
-deterministic product never breaks. The web-research fan-out + source-appraisal (already
-scaffolded in `appraisal.py`) plugs in between `gather_peers` and `build_evidence` later.
+The agent layer uses the **supervisor pattern** (see the diagrams in §6). A central
+supervisor node owns an ordered **plan** for the requested task and routes to one specialist
+at a time; each specialist returns to the supervisor until the plan is empty. Routing is
+deterministic (plan-driven), so orchestration costs no tokens and is fully reproducible.
 
-### 10.3 Source-appraisal gate — `agent/appraisal.py`
+Plans (`supervisor.PLANS`):
+- `fund_review` → quant → peers → evidence → verdict → narrate (free, no web)
+- `fund_review_deep` → inserts **research** before evidence
+- `research_only` → research specialist alone (the on-demand, credit-spending path)
 
-Every externally-sourced claim must pass this gate before it earns weight. Computed evidence
-bypasses it (primary by construction, 1.0). Web sources earn a 0–1 reliability from
-transparent, recorded criteria: **authoritative domain** (tiered — SEBI/AMFI/RBI highest,
-then data houses, then press), **recency**, and **corroboration** by independent sources.
-Claims below the trust floor (0.45) are logged but given zero weight. *(The fan-out that feeds
-this gate is the next build; the gate itself is in place.)*
+`graph.py` exposes the stable entry points the API uses: `review_fund(...)`,
+`research_fund(...)`, and `build_graph` (the compiled supervisor, used by SSE streaming). New
+specialists (insights, market-pulse) slot in by adding a node + a plan — no rewiring.
 
-### 10.4 Optional LLM narrative — `agent/llm.py`
+### 10.3 Specialists — `agent/nodes.py`
 
-The LLM is given **only** the computed metrics, peer ranks, evidence ledger, and the
-already-decided verdict. The system prompt enforces the three principles, forbids inventing
-numbers, forbids overriding the verdict, and mandates child-level clarity with analogies.
-Output is strict JSON (`headline`, `narrative`, `caveats`). It explains the arithmetic; it
-never changes it.
+Each plan step is a node reusing the existing logic: `gather_quant`, `gather_peers`,
+`gather_research`, `build_evidence`, `synthesise`, `narrate`. Deterministic specialists need
+no credentials; `gather_research` and `narrate` use the LLM (with graceful fallback).
+
+### 10.4 Research specialist — `agent/research.py` + `data/websearch.py`
+
+Runs only in `fund_review_deep` / `research_only`. Two credit-conservative Tavily searches
+(facts + recent news) → every source through the appraisal gate → the LLM extracts concise,
+**cited** claims (inline `[n]` markers). Cost controls: on-demand only, `basic` depth, 72h
+cache, and an app-wide daily call cap. See §16.
+
+### 10.5 Source-appraisal gate — `agent/appraisal.py`
+
+Every externally-sourced claim passes this gate before it earns weight. Computed evidence
+bypasses it (primary, 1.0). Web sources earn a 0–1 reliability from transparent, recorded
+criteria: **authoritative domain** (tiered — SEBI/AMFI/RBI highest, then research houses and
+fund-data platforms, then press), **recency**, and **corroboration** by independent sources.
+Claims below the trust floor (0.45) are logged but given zero weight.
+
+### 10.6 Citation service — `agent/citations.py`
+
+A `CitationRegistry` numbers each unique source (deduped by URL, first-use order) and emits
+the footnote list the UI renders. Agents write inline `[n]` markers; the frontend turns them
+into links to the numbered **Sources** section, each with domain, date, reliability and link.
+
+### 10.7 LLM layer — `agent/llm.py`, `agent/llm_provider.py`
+
+`llm_provider.get_chat_model()` is the single place that knows the backend (Claude via
+Anthropic, or an open model via Groq) — the whole project switches with one `LLM_PROVIDER`
+env var. `llm.py` writes the narrative given **only** the computed evidence + the
+already-decided verdict; the system prompt forbids inventing numbers or overriding the
+verdict and mandates child-level clarity. It explains the arithmetic; it never changes it.
 
 ---
 
@@ -465,6 +586,7 @@ Base path `/api`. Interactive docs at `/docs` (Swagger) and `/redoc`.
 | GET    | `/review/stream`        | Single-fund review as SSE (`step`* → `result`).    |
 | POST   | `/portfolio`            | Whole-portfolio analysis (synchronous).            |
 | POST   | `/portfolio/stream`     | Portfolio as SSE (`start` → `holding`* → `result`).|
+| GET    | `/research?scheme_code=`| On-demand web research for one fund (spends credits; cited claims + footnotes + budget). |
 
 ### `GET /search`
 ```jsonc
@@ -650,13 +772,17 @@ Holdings by units + avg buy NAV, per-fund personal returns, portfolio health + v
 category mix, category-level concentration (HHI), best/worst performers, "what to reconsider",
 two-tab UI with per-holding drill-down, per-fund streaming.
 
-### Future
-- Web-research fan-out into the appraisal gate (manager change, expense-ratio & mandate drift,
-  AUM bloat), each claim reliability-scored.
-- True stock-level overlap; benchmark-index comparison.
-- Insights tab (per-fund & per-portfolio narratives, trends).
-- LangGraph Deep Agents for deeper autonomous research; broader asset coverage; statement
-  import; saved portfolios.
+### ✅ V3 (part 1) — Web research + multi-agent + multi-provider LLM
+On-demand web-research specialist (manager, cost, mandate, size, regulatory) through the
+source-appraisal gate with inline citations; supervisor/orchestrator architecture; LLM layer
+switchable between Claude (Anthropic) and Groq; strict Tavily credit controls.
+
+### Next
+- **Insights tab** — per-fund & per-portfolio narrative insights over the gathered evidence.
+- **Market Pulse tab** — overall Indian market + fund-relevant sentiment, triggers, cited
+  projections (attributed, never presented as Truthfolio's own forecast).
+- True stock-level overlap; benchmark-index comparison; broader asset coverage; saved
+  portfolios; statement import.
 
 ---
 

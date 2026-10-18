@@ -53,19 +53,44 @@ cd frontend && npm install && npm run dev
 
 Tests: `cd backend && .venv/bin/python -m pytest -q` · Types: `cd frontend && npx tsc --noEmit`
 
+## Architecture
+
+A **supervisor** orchestrates focused specialist agents over free public data — and, only
+when you ask, the web. Orchestration and scoring are deterministic; the LLM is used only
+inside the specialists that need it.
+
+```mermaid
+flowchart LR
+    U([You]) --> FE[Web app]
+    FE --> API[FastAPI]
+    API --> SUP(("Supervisor"))
+    SUP --> Q["Quant<br/>metrics & peers"]
+    SUP --> R["Research<br/>web + citations"]
+    SUP --> V["Verdict<br/>transparent score"]
+    SUP --> N["Narrator<br/>plain English"]
+    Q --> D[("AMFI · mfapi")]
+    R --> W[("Tavily · LLM")]
+    N --> W
+```
+
+Full diagrams (flow, sequence, service interaction) are in
+[`docs/TECHNICAL.md`](docs/TECHNICAL.md).
+
 ## Tech stack
 
-**Backend** Python · FastAPI · LangGraph · NumPy / Pandas  
+**Backend** Python · FastAPI · LangGraph (supervisor/multi-agent) · NumPy / Pandas  
 **Frontend** Next.js · React · TypeScript · Tailwind CSS  
+**LLM** Claude (Anthropic) or Groq — provider-switchable · **Search** Tavily (on-demand)  
 **Data** AMFI `NAVAll.txt` · mfapi.in (free, public)
 
 ## Project structure
 
 ```
 backend/    FastAPI + LangGraph API
-  app/data/       fund search (AMFI) · NAV history (mfapi) · cache
+  app/data/       fund search (AMFI) · NAV history (mfapi) · web search (Tavily) · cache
   app/analysis/   metrics · peers · portfolio · explainers
-  app/agent/      LangGraph pipeline · scoring/verdict · evidence · appraisal
+  app/agent/      supervisor · specialists (quant/research/verdict/narrator)
+                  scoring/verdict · appraisal gate · citations · LLM provider factory
 frontend/   Next.js app (two tabs: fund review / portfolio)
 docs/       TECHNICAL.md (engineering reference) · index.html (landing page)
 ```
@@ -77,7 +102,8 @@ reference, and extension points.
 
 - ✅ **V1** — single-fund review
 - ✅ **V2** — whole-portfolio review
-- 🚧 **Future** — *in progress… loading.*
+- ✅ **V3** — web research with citations · supervisor multi-agent · provider-switchable LLM
+- 🚧 **Next** — *in progress… loading.*
 
 ## Disclaimer
 
