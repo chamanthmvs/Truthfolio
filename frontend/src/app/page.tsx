@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import SearchBar from "@/components/SearchBar";
 import ThinkingStream from "@/components/ThinkingStream";
 import FundReview from "@/components/FundReview";
@@ -246,15 +247,18 @@ function Header() {
   return (
     <header className="app-header mb-7 flex items-center justify-between gap-4">
       <a href="https://chamanthmvs.github.io/Truthfolio/" className="flex items-center gap-3" aria-label="Truthfolio home">
-      <div className="app-logo flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-white">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <path d="M3 17l5-5 4 4 8-9" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </div>
-      <div>
-        <span className="block text-base font-semibold tracking-tight text-ink">Truthfolio</span>
-        <span className="block text-[11px] text-ink-faint">The evidence-first fund review</span>
-      </div>
+        <Image
+          src="/truthfolio-mark.svg"
+          alt=""
+          width={40}
+          height={40}
+          className="app-logo rounded-xl"
+          priority
+        />
+        <div>
+          <span className="block text-base font-semibold tracking-tight text-ink">Truthfolio</span>
+          <span className="block text-[11px] text-ink-faint">The evidence-first fund review</span>
+        </div>
       </a>
       <a
         href="https://github.com/chamanthmvs/Truthfolio/blob/main/docs/TECHNICAL.md"

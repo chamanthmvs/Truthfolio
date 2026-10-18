@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#f8f8f2" />
+  <link rel="icon" type="image/svg+xml" href="truthfolio-mark.svg" />
   <title>Truthfolio — clarity for your mutual funds</title>
   <meta name="description" content="An honest second opinion on Indian mutual funds. Real NAV data, peer comparisons, transparent scores, and explanations you can actually understand." />
   <meta property="og:title" content="Truthfolio — clarity for your mutual funds" />
@@ -61,8 +62,7 @@
     }
     .nav-in { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
     .brand { display: inline-flex; align-items: center; gap: 11px; font-size: 16px; font-weight: 700; letter-spacing: -.04em; }
-    .brand-mark { width: 36px; height: 36px; display: grid; place-items: center; color: #fff; border-radius: 12px; background: var(--forest); }
-    .brand-mark svg { width: 21px; height: 21px; }
+    .brand-mark { width: 36px; height: 36px; display: block; border-radius: 12px; }
     .nav-links { display: flex; align-items: center; gap: 28px; color: var(--muted); font-size: 13px; font-weight: 600; }
     .nav-links a:not(.button):hover { color: var(--forest); }
     .button {
@@ -300,9 +300,7 @@
   <nav class="nav" aria-label="Main navigation">
     <div class="wrap nav-in">
       <a class="brand" href="#top" aria-label="Truthfolio home">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M3.5 16.5 8.1 12l3.4 3.2 8.8-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.6 6.2h4.8V11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </span>
+        <img class="brand-mark" src="truthfolio-mark.svg" alt="" />
         Truthfolio
       </a>
       <div class="nav-links">

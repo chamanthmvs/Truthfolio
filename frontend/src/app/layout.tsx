@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   title: "Truthfolio — honest, evidence-backed fund verdicts",
   description:
     "The honest truth about your mutual funds. Continue, Stop, or Shift — every verdict computed from real data, ranked against peers, and explained in plain English.",
+  icons: {
+    icon: "/truthfolio-mark.svg",
+    shortcut: "/truthfolio-mark.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
