@@ -1,0 +1,10 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "search.exclude": {
+    "**/.venv": true,
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/.cache": true
+  }
+}
