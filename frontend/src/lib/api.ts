@@ -149,6 +149,32 @@ export async function fetchPortfolioInsights(
 }
 
 /** Ask one bounded follow-up question about an already-computed portfolio. */
+export interface Capabilities {
+  chat: boolean;
+  research: boolean;
+  market_pulse: boolean;
+  insights_ai: boolean;
+}
+
+const CAPS_FALLBACK: Capabilities = {
+  chat: false,
+  research: false,
+  market_pulse: false,
+  insights_ai: false,
+};
+
+let _capabilities: Promise<Capabilities> | null = null;
+
+/** Which key-gated features are available. Fetched once per session; fails closed. */
+export function fetchCapabilities(): Promise<Capabilities> {
+  if (!_capabilities) {
+    _capabilities = fetch(`${API_BASE}/capabilities`)
+      .then((r) => (r.ok ? r.json() : CAPS_FALLBACK))
+      .catch(() => CAPS_FALLBACK);
+  }
+  return _capabilities;
+}
+
 export async function askPortfolioQuestion(
   summary: PortfolioSummary,
   holdings: PortfolioResponse["holdings"],

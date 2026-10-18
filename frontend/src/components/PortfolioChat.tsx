@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { askPortfolioQuestion } from "@/lib/api";
+import { askPortfolioQuestion, fetchCapabilities } from "@/lib/api";
 import type { PortfolioChatMessage, PortfolioHolding, PortfolioSummary } from "@/lib/types";
 
 const MAX_QUESTIONS = 5;
@@ -21,9 +21,21 @@ export default function PortfolioChat({ summary, holdings }: Props) {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // null = still checking; false = no AI provider configured (hide chat entirely).
+  const [available, setAvailable] = useState<boolean | null>(null);
   const conversationRef = useRef<HTMLDivElement>(null);
   const questionsAsked = messages.filter(({ role }) => role === "user").length;
   const limitReached = questionsAsked >= MAX_QUESTIONS;
+
+  useEffect(() => {
+    let active = true;
+    fetchCapabilities().then((caps) => {
+      if (active) setAvailable(caps.chat);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const conversation = conversationRef.current;
@@ -52,6 +64,9 @@ export default function PortfolioChat({ summary, holdings }: Props) {
       setLoading(false);
     }
   }
+
+  // Hide the chat entirely when no AI provider is configured (nothing to answer with).
+  if (available !== true) return null;
 
   return (
     <section className="glass overflow-hidden rounded-2xl" aria-labelledby="portfolio-chat-title">

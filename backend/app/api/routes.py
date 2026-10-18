@@ -36,6 +36,20 @@ async def health() -> dict:
     return {"status": "ok"}
 
 
+@router.get("/capabilities")
+async def capabilities() -> dict:
+    """Which optional, key-gated features are available, so the UI can hide what can't work."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    return {
+        "chat": settings.llm_enabled,
+        "research": settings.research_enabled,
+        "market_pulse": settings.research_enabled,
+        "insights_ai": settings.llm_enabled,
+    }
+
+
 @router.get("/search", response_model=SearchResponse)
 async def search(q: str = Query(..., min_length=2), limit: int = Query(12, ge=1, le=30)):
     """Typeahead over the validated AMFI universe — only real schemes are returnable."""
