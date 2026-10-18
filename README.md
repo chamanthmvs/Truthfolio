@@ -2,116 +2,45 @@
 
 # ⚖️ Truthfolio
 
-### Should you keep that fund, drop it, or switch to something better?
+**An honest, evidence-backed reviewer for your mutual funds.**
+Keep it, drop it, or switch — every verdict computed from real data, ranked against peers,
+and explained in plain English.
 
-**The honest truth about your mutual funds — not a sales pitch.**
-Every verdict is computed from real market data, measured against similar funds, and explained
-so plainly that anyone can follow the *why* — not just finance pros.
-
-**`Continue`  ·  `Stop`  ·  `Shift`**
+[**Overview & demo →**](https://chamanthmvs.github.io/Truthfolio/) · [**Technical docs →**](docs/TECHNICAL.md)
 
 </div>
 
 ---
 
-## What is this?
+Truthfolio answers one question honestly: *is your money in a good fund, or not?* You give it
+a fund — or your whole portfolio — and it returns a clear **Continue / Stop / Shift** verdict
+backed by numbers it actually computes (returns, risk, consistency), ranked against similar
+funds, with every metric explained like you're new to investing. No flattery, no jargon, no
+sales pitch.
 
-If you've put money into mutual funds, you've probably asked yourself: *"Is this actually a
-good fund, or am I just hoping?"*
+It runs entirely on **free, public data** (AMFI + mfapi) — no API keys needed for the core.
 
-**Truthfolio answers that question — honestly.** You give it a fund (or your
-whole portfolio), and it tells you plainly whether to **keep it, drop it, or switch to
-something better** — and then it *shows you exactly why*, using numbers computed from real
-market data, compared against similar funds, with every term explained like you're brand new
-to investing.
+## Features
 
-No sales pitch. No jargon dumped on you. No vibes. Just the truth, with the receipts.
+**Single-fund review**
+- Verdict (Continue / Stop / Shift) with a transparent 0–100 health score and confidence
+- Returns, rolling returns, volatility, Sharpe, Sortino, drawdown — each with a plain-English explainer
+- Percentile ranking against same-category peers
+- An evidence ledger where every claim carries its source and a reliability score
 
----
+**Portfolio review**
+- Add holdings by units + average buy NAV → your real gain/loss and return, per fund and overall
+- Portfolio health score and verdict, category mix, and concentration analysis
+- Best/worst performers and a clear "what to reconsider" list
+- Drill into any holding for its full fund review
 
-## Why it's different
-
-Most tools either flatter every fund or bury you in numbers you can't read. This one is built
-on three promises:
-
-| Promise | What it means for you |
-| --- | --- |
-| 🫡 **Full honesty** | If a fund is weak, we say so — even if it made you money. A fund that's up can still be a bad place for your money if better options exist. |
-| 🧾 **Evidence-based** | Every single claim traces back to a real, computed number. Nothing is made up. You can expand any verdict down to its sources and see how much we trust each one. |
-| 🧒 **Explained like you're new** | Every metric comes with a plain-English, everyday-analogy explanation. "Was the bumpy ride worth it?" instead of "risk-adjusted return." |
-
----
-
-## What you can do
-
-### 🔍 Review a single fund
-Search any Indian mutual fund (only real, registered schemes appear — no typos, no fakes),
-and get:
-- A clear **Continue / Stop / Shift** verdict with a **health score** and a confidence level
-- **Returns, risk, and consistency** metrics — each with a one-line plain explanation
-- **How it ranks against similar funds** (are you in a top fund or a laggard?)
-- **Rolling returns** — the honest performance picture, not one lucky number
-- An **evidence ledger** you can open up to see the proof behind every point
-
-### 📊 Review your whole portfolio
-Add the funds you own with your units and average buy price, and get:
-- Your **total invested vs. worth today**, and your real gain/loss in ₹ and %
-- An overall **portfolio health score and verdict**
-- **Where your money actually sits** — the mix across fund types, and whether you're
-  dangerously concentrated
-- Your **best and worst performers**, and a clear **"what to reconsider"** list
-- Tap any fund to open its full honest review
-
----
-
-## How it works (the short version)
-
-```
-Your fund / portfolio
-        │
-        ▼
-  Pull real NAV history  ──►  Compute the numbers (returns, risk, consistency)
-        │                           │
-        ▼                           ▼
-  Rank against peers   ──►   Weigh the evidence   ──►   Honest verdict + plain-English why
-```
-
-Under the hood: a **Python + FastAPI** backend runs a **LangGraph** reasoning pipeline over
-free, public market data (AMFI + mfapi), with a transparent scoring engine deciding the
-verdict. A **Next.js** frontend streams the reasoning live so you watch the verdict being
-*earned*, not guessed. There's an optional AI narrative layer that writes the human summary —
-but it can only explain the evidence, never invent it or overrule the score.
-
----
-
-## Versions
-
-### ✅ V1 — Single-fund review
-Validated fund search, full metrics with plain-English explanations, peer ranking, rolling
-returns, a transparent health score and Continue/Stop/Shift verdict, and an inspectable
-evidence ledger.
-
-### ✅ V2 — Whole-portfolio review
-Add your holdings (units + average buy NAV), see your personal returns per fund, a
-portfolio-level health score and verdict, your category mix and concentration, best/worst
-performers, and a "what to reconsider" list — with drill-down into any fund's full review.
-
-### 🚧 Future versions
-> **In progress… loading ▰▰▰▱▱▱▱**
->
-> More is being built. Stay tuned. 🙂
-
----
-
-## Quickstart
+## Quick start
 
 ```bash
-./dev.sh
+./dev.sh          # starts backend (:8077) and frontend (:3000)
 ```
 
-Then open **http://localhost:3000**.
-
-Or run the two apps separately:
+Then open **http://localhost:3000**. Or run them separately:
 
 ```bash
 # Backend  → http://localhost:8077  (API docs at /docs)
@@ -122,23 +51,35 @@ cd backend && uv venv .venv && uv pip install -e ".[dev]"
 cd frontend && npm install && npm run dev
 ```
 
-The entire core — search, metrics, peer ranking, verdicts — runs with **zero API keys** on
-free public data. (An optional AI narrative can be enabled via `backend/.env`.)
+Tests: `cd backend && .venv/bin/python -m pytest -q` · Types: `cd frontend && npx tsc --noEmit`
 
-**Tech:** Python · FastAPI · LangGraph · Next.js · TypeScript · Tailwind.
-Engineering details live in [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
+## Tech stack
 
----
+**Backend** Python · FastAPI · LangGraph · NumPy / Pandas  
+**Frontend** Next.js · React · TypeScript · Tailwind CSS  
+**Data** AMFI `NAVAll.txt` · mfapi.in (free, public)
 
-## A note on trust
+## Project structure
 
-This is **educational analysis, not personalised investment advice.** Verdicts are based on
-past performance, which never guarantees future results. We're transparent about what we
-don't yet factor in — because being honest about our limits is the entire point of this
-project.
+```
+backend/    FastAPI + LangGraph API
+  app/data/       fund search (AMFI) · NAV history (mfapi) · cache
+  app/analysis/   metrics · peers · portfolio · explainers
+  app/agent/      LangGraph pipeline · scoring/verdict · evidence · appraisal
+frontend/   Next.js app (two tabs: fund review / portfolio)
+docs/       TECHNICAL.md (engineering reference) · index.html (landing page)
+```
 
----
+See [`docs/TECHNICAL.md`](docs/TECHNICAL.md) for architecture, scoring methodology, API
+reference, and extension points.
 
-<div align="center">
-<sub>Built for investors who'd rather hear the truth.</sub>
-</div>
+## Roadmap
+
+- ✅ **V1** — single-fund review
+- ✅ **V2** — whole-portfolio review
+- 🚧 **Future** — *in progress… loading.*
+
+## Disclaimer
+
+Truthfolio is **educational analysis, not personalised investment advice.** Verdicts are based
+on past performance, which never guarantees future results.

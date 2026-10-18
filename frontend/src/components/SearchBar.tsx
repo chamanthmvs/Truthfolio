@@ -126,6 +126,25 @@ export default function SearchBar({ onSelect }: Props) {
             </li>
           </motion.ul>
         )}
+
+        {/* No-match state: say so plainly instead of showing an empty dropdown. */}
+        {open && !loading && query.trim().length >= 2 && hits.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.16 }}
+            className="glass-strong absolute z-50 mt-2 w-full rounded-2xl p-5 text-center"
+            style={{ boxShadow: "var(--shadow-lg)" }}
+          >
+            <div className="text-sm font-medium text-ink">No such fund found</div>
+            <div className="mt-1.5 text-xs leading-relaxed text-ink-faint">
+              We couldn&apos;t find a match for &ldquo;{query.trim()}&rdquo;. Only real,
+              AMFI-registered schemes can be analysed — check the spelling or try the
+              fund&apos;s official name.
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

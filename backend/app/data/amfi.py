@@ -11,6 +11,7 @@ This module is the guarantee behind "no random funds."
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass, field
 
 import httpx
@@ -21,6 +22,14 @@ from app.data import cache
 
 _MASTER_CACHE_KEY = "amfi_master"
 _lock = asyncio.Lock()
+
+# Filler words that carry no distinguishing signal in a fund search, so they don't count
+# toward the "did the user's distinctive words actually match?" gate.
+_SEARCH_STOPWORDS = {
+    "fund", "funds", "the", "of", "and", "scheme", "plan", "direct", "regular",
+    "growth", "idcw", "dividend", "payout", "reinvestment", "option", "mutual",
+    "india", "indian", "open", "ended", "closed",
+}
 
 
 @dataclass(slots=True)
@@ -74,21 +83,38 @@ class SchemeMaster:
 
     def search(self, query: str, limit: int = 12) -> list[Scheme]:
         q = query.strip().lower()
-        if not q:
+        if len(q) < 2:
             return []
-        # token_set_ratio handles out-of-order words ("flexi parag" -> "Parag Parikh Flexi Cap")
+
+        # Precision gate: a fund is only a candidate if it actually contains the DISTINCTIVE
+        # words the user typed (ignoring filler like "fund", "direct", "growth"). This is what
+        # makes a made-up name — e.g. "Tesla Moon Fund" — return nothing instead of fuzzy
+        # noise, while still matching real partial/reordered/mis-cased queries. Substring
+        # checks also make prefixes work ("flex" ⊂ "flexi", "parik" ⊂ "parikh").
+        tokens = [t for t in re.split(r"[^a-z0-9&]+", q) if t]
+        meaningful = [t for t in tokens if t not in _SEARCH_STOPWORDS and len(t) >= 2]
+
+        def passes_gate(text: str) -> bool:
+            if not meaningful:  # user typed only filler words — let fuzzy decide
+                return True
+            present = sum(1 for t in meaningful if t in text)
+            return present / len(meaningful) >= 0.6
+
+        # token_set_ratio handles out-of-order words ("flexi parag" -> "Parag Parikh Flexi Cap").
         matches = process.extract(
             q,
             self._search_corpus,
             scorer=fuzz.token_set_ratio,
-            limit=limit * 3,
-            score_cutoff=50,
+            limit=limit * 6,
+            score_cutoff=45,
         )
         # Collapse the 4 plan/option variants of each fund into one row, preferring the
         # Direct-Growth plan (what a cost-conscious long-term investor should hold / compare).
         best_by_fund: dict[str, tuple[float, Scheme]] = {}
         order: list[str] = []
-        for _text, score, idx in matches:
+        for text, score, idx in matches:
+            if not passes_gate(text):
+                continue
             scheme = self.schemes[idx]
             key = scheme.base_name.lower()
             preference = (
