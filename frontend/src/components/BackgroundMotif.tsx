@@ -36,13 +36,16 @@ export default function BackgroundMotif() {
           </linearGradient>
         </defs>
 
-        {/* area under the curve */}
+        {/* area under the curve — fades in as the line draws */}
         <path
+          className="nav-fade-in"
           d="M0,470 C150,452 240,486 360,440 C480,394 560,420 680,356 C800,292 900,322 1040,260 C1160,206 1300,224 1440,168 L1440,560 L0,560 Z"
           fill="url(#nav-area)"
         />
-        {/* the growth line */}
+        {/* the growth line — draws itself in on load (pathLength=1 normalises the dash) */}
         <path
+          className="nav-line-draw"
+          pathLength={1}
           d="M0,470 C150,452 240,486 360,440 C480,394 560,420 680,356 C800,292 900,322 1040,260 C1160,206 1300,224 1440,168"
           stroke="url(#nav-line)"
           strokeWidth="2.5"
@@ -50,6 +53,7 @@ export default function BackgroundMotif() {
         />
         {/* a fainter second curve for depth */}
         <path
+          className="nav-fade-in"
           d="M0,520 C180,508 260,528 420,492 C600,452 700,470 860,418 C1020,366 1180,382 1440,320"
           stroke="#0e7c5a"
           strokeOpacity="0.045"

@@ -143,6 +143,15 @@
 
   .reveal{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s cubic-bezier(.22,1,.36,1)}
   .reveal.in{opacity:1;transform:none}
+  /* signature NAV curve draws itself in once on load */
+  .nav-line-draw{stroke-dasharray:1;stroke-dashoffset:1;animation:navDraw 1.7s cubic-bezier(.33,1,.68,1) .15s forwards}
+  .nav-fade-in{opacity:0;animation:navFade 1.3s ease-out .55s forwards}
+  @keyframes navDraw{to{stroke-dashoffset:0}}
+  @keyframes navFade{to{opacity:1}}
+  @media(prefers-reduced-motion:reduce){
+    .nav-line-draw{stroke-dashoffset:0;animation:none}
+    .nav-fade-in{opacity:1;animation:none}
+  }
 </style>
 </head>
 <body>
@@ -162,9 +171,9 @@
         <stop offset="1" stop-color="#34d399" stop-opacity="0"/>
       </linearGradient>
     </defs>
-    <path d="M0,470 C150,452 240,486 360,440 C480,394 560,420 680,356 C800,292 900,322 1040,260 C1160,206 1300,224 1440,168 L1440,560 L0,560 Z" fill="url(#nav-area)"/>
-    <path d="M0,470 C150,452 240,486 360,440 C480,394 560,420 680,356 C800,292 900,322 1040,260 C1160,206 1300,224 1440,168" stroke="url(#nav-line)" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M0,520 C180,508 260,528 420,492 C600,452 700,470 860,418 C1020,366 1180,382 1440,320" stroke="#0e7c5a" stroke-opacity="0.045" stroke-width="1.5"/>
+    <path class="nav-fade-in" d="M0,470 C150,452 240,486 360,440 C480,394 560,420 680,356 C800,292 900,322 1040,260 C1160,206 1300,224 1440,168 L1440,560 L0,560 Z" fill="url(#nav-area)"/>
+    <path class="nav-line-draw" pathLength="1" d="M0,470 C150,452 240,486 360,440 C480,394 560,420 680,356 C800,292 900,322 1040,260 C1160,206 1300,224 1440,168" stroke="url(#nav-line)" stroke-width="2.5" stroke-linecap="round"/>
+    <path class="nav-fade-in" d="M0,520 C180,508 260,528 420,492 C600,452 700,470 860,418 C1020,366 1180,382 1440,320" stroke="#0e7c5a" stroke-opacity="0.045" stroke-width="1.5"/>
   </svg>
   <div class="grain"></div>
 </div>
