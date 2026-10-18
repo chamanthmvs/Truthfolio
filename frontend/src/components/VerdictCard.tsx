@@ -24,7 +24,7 @@ export default function VerdictCard({ review }: { review: ReviewResponse }) {
       className="glass-strong relative overflow-hidden rounded-2xl p-6 sm:p-8"
     >
       <div
-        className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full opacity-30 blur-3xl"
+        className="pointer-events-none absolute -right-24 -top-28 h-64 w-64 rounded-full opacity-[0.08] blur-3xl"
         style={{ background: color }}
       />
       <div className="flex flex-col gap-8 sm:flex-row sm:items-center sm:justify-between">
@@ -73,7 +73,7 @@ function ConfidenceBar({ value }: { value: number }) {
         <span className="text-ink-faint">Confidence in this verdict</span>
         <span className="font-mono text-ink-dim">{Math.round(value * 100)}%</span>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-white/[0.06]">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-black/[0.07]">
         <motion.div
           className="h-full rounded-full bg-brand"
           initial={{ width: 0 }}

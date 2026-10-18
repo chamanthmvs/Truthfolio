@@ -33,7 +33,7 @@ export default function HoldingsTable({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
               onClick={() => onOpen(h)}
-              className="group flex w-full items-center gap-3 rounded-xl border border-line p-3 text-left transition hover:bg-white/[0.04]"
+              className="group flex w-full items-center gap-3 rounded-xl border border-line p-3 text-left transition hover:border-brand/30 hover:bg-brand/[0.04]"
             >
               {/* name + category */}
               <div className="min-w-0 flex-1">

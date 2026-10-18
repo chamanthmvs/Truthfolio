@@ -32,7 +32,7 @@ export default function HealthGauge({ score, tone, size = 184 }: Props) {
             cy={cy}
             r={r}
             fill="none"
-            stroke="rgba(255,255,255,0.07)"
+            stroke="rgba(21,23,28,0.08)"
             strokeWidth={stroke}
             strokeLinecap="round"
             strokeDasharray={`${arcLen} ${circ}`}
@@ -48,7 +48,7 @@ export default function HealthGauge({ score, tone, size = 184 }: Props) {
             strokeDasharray={`0 ${circ}`}
             animate={{ strokeDasharray: `${filled} ${circ}` }}
             transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
-            style={{ filter: `drop-shadow(0 0 10px ${color}66)` }}
+            style={{ filter: `drop-shadow(0 1px 4px ${color}40)` }}
           />
         </g>
       </svg>

@@ -11,7 +11,7 @@ export default function ThinkingStream({ steps, done }: { steps: string[]; done:
     >
       <div className="mb-4 flex items-center gap-3">
         {!done && (
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-brand" />
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-black/10 border-t-brand" />
         )}
         <span className="text-sm font-medium text-ink">
           {done ? "Review complete" : "Building the evidence…"}

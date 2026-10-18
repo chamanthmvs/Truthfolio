@@ -39,12 +39,12 @@ export default function PeerBars({ peers }: { peers: PeerReport }) {
                 {ordinal(Math.round(pct * 100))} pctl
               </span>
             </div>
-            <div className="relative h-2.5 w-full rounded-full bg-white/[0.06]">
+            <div className="relative h-2.5 w-full rounded-full bg-black/[0.07]">
               {/* median marker */}
-              <div className="absolute inset-y-0 left-1/2 w-px bg-white/25" />
+              <div className="absolute inset-y-0 left-1/2 w-px bg-black/25" />
               <motion.div
-                className="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-bg"
-                style={{ background: color, boxShadow: `0 0 10px ${color}aa` }}
+                className="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-[var(--bg-elev)]"
+                style={{ background: color, boxShadow: `0 1px 4px ${color}66` }}
                 initial={{ left: "0%" }}
                 animate={{ left: `calc(${pct * 100}% - 8px)` }}
                 transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: i * 0.05 }}
@@ -54,7 +54,7 @@ export default function PeerBars({ peers }: { peers: PeerReport }) {
         );
       })}
       <div className="flex items-center gap-1.5 pt-1 text-[11px] text-ink-faint">
-        <span className="h-3 w-px bg-white/25" /> peer median
+        <span className="h-3 w-px bg-black/30" /> peer median
       </div>
     </div>
   );

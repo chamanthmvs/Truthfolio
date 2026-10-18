@@ -4,108 +4,138 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Truthfolio — honest, evidence-backed fund verdicts</title>
-<meta name="description" content="The honest truth about your mutual funds. Continue, Stop, or Shift — every verdict computed from real data, ranked against peers, and explained in plain English." />
+<meta name="description" content="Should you keep that fund, drop it, or switch? Truthfolio gives an honest, evidence-backed verdict on your mutual funds — explained in plain English." />
 <meta property="og:title" content="Truthfolio — honest, evidence-backed fund verdicts" />
 <meta property="og:description" content="Should you keep that fund, drop it, or switch? The honest answer, backed by evidence, explained in plain English." />
 <meta property="og:type" content="website" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
   :root{
-    --bg:#07090f; --ink:#e8ecf4; --ink-dim:#9aa6bd; --ink-faint:#64708a;
-    --line:rgba(255,255,255,.09); --line-strong:rgba(255,255,255,.14);
-    --positive:#34d399; --caution:#fbbf24; --negative:#fb7185; --brand:#7c9cff;
+    --bg:#fbfaf7; --subtle:#f3f2ec; --surface:#ffffff;
+    --ink:#15171c; --ink-dim:#525864; --ink-faint:#8b909c;
+    --line:rgba(21,23,28,.09); --line-strong:rgba(21,23,28,.15);
+    --brand:#0e7c5a; --brand-ink:#0a5e44; --brand-soft:rgba(14,124,90,.08);
+    --positive:#0e7c5a; --neutral:#2563eb; --caution:#b45309; --negative:#d52c3a;
+    --sh-sm:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.04);
+    --sh:0 2px 6px rgba(16,24,40,.05),0 12px 32px rgba(16,24,40,.08);
+    --sh-lg:0 10px 28px rgba(16,24,40,.08),0 30px 70px rgba(16,24,40,.12);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
-  body{
-    font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);
+  body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);
     -webkit-font-smoothing:antialiased;line-height:1.55;overflow-x:hidden;
-    background-image:
-      radial-gradient(900px 600px at 12% -10%, rgba(124,156,255,.12), transparent 60%),
-      radial-gradient(800px 520px at 100% 0%, rgba(52,211,153,.09), transparent 55%);
-    background-attachment:fixed;
-  }
-  .wrap{max-width:1000px;margin:0 auto;padding:0 20px}
-  a{color:inherit}
-  .mono{font-family:"JetBrains Mono",monospace}
+    background-image:radial-gradient(1100px 480px at 50% -320px,rgba(14,124,90,.07),transparent 70%);
+    background-repeat:no-repeat}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+  a{color:inherit;text-decoration:none}
+  .serif{font-family:Fraunces,Georgia,serif}
+  .mono{font-family:"SFMono-Regular",ui-monospace,Menlo,monospace}
+  .accent{color:var(--brand-ink)}
 
   /* nav */
-  nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(12px);
-    background:rgba(7,9,15,.6);border-bottom:1px solid var(--line)}
-  .nav-in{display:flex;align-items:center;justify-content:space-between;height:60px}
-  .brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:-.01em}
+  nav{position:sticky;top:0;z-index:30;backdrop-filter:blur(10px);
+    background:rgba(251,250,247,.8);border-bottom:1px solid var(--line)}
+  .nav-in{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:-.01em;font-size:15px}
   .brand .mark{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;
-    background:rgba(124,156,255,.18);font-size:16px}
-  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:9px 16px;
-    font-size:14px;font-weight:600;text-decoration:none;transition:.15s;border:1px solid var(--line-strong)}
-  .btn-primary{background:var(--brand);color:#07090f;border-color:transparent}
-  .btn-primary:hover{filter:brightness(1.1)}
-  .btn-ghost{color:var(--ink-dim)}
-  .btn-ghost:hover{color:var(--ink);border-color:var(--ink-faint)}
+    background:var(--brand);color:#fff;font-size:15px;box-shadow:var(--sh-sm)}
+  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:10px 18px;
+    font-size:14px;font-weight:600;transition:.15s;border:1px solid var(--line-strong);background:var(--surface);box-shadow:var(--sh-sm)}
+  .btn:hover{border-color:var(--ink-faint)}
+  .btn-primary{background:var(--brand);color:#fff;border-color:transparent}
+  .btn-primary:hover{filter:brightness(1.07);border-color:transparent}
 
   /* hero */
-  header.hero{padding:88px 0 64px;text-align:center}
-  .chip{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-dim);
-    border:1px solid var(--line);border-radius:999px;padding:6px 14px;margin-bottom:28px}
-  .dot{width:7px;height:7px;border-radius:50%;background:var(--positive);box-shadow:0 0 10px var(--positive)}
-  h1{font-size:clamp(2.1rem,6vw,3.6rem);font-weight:800;letter-spacing:-.03em;line-height:1.05;
-    max-width:18ch;margin:0 auto}
-  .sub{margin:22px auto 0;max-width:56ch;font-size:clamp(1rem,2.4vw,1.2rem);color:var(--ink-dim)}
-  .verdicts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:30px 0 34px}
-  .verdict{font-weight:700;font-size:14px;border-radius:999px;padding:8px 18px}
-  .v-cont{color:var(--positive);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3)}
-  .v-stop{color:var(--negative);background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.3)}
-  .v-shift{color:var(--caution);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3)}
-  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  header.hero{padding:76px 0 36px;text-align:center}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--ink-dim);
+    background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 15px;box-shadow:var(--sh-sm);margin-bottom:26px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--positive)}
+  h1{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:clamp(2.5rem,6.4vw,4.4rem);
+    line-height:1.02;letter-spacing:-.02em;max-width:16ch;margin:0 auto}
+  h1 em{font-style:italic;color:var(--brand-ink)}
+  .sub{margin:24px auto 0;max-width:52ch;font-size:clamp(1.05rem,2.3vw,1.3rem);color:var(--ink-dim)}
+  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:34px}
+
+  /* product mock */
+  .mock-wrap{margin:64px auto 0;max-width:720px;position:relative}
+  .mock-wrap::before{content:"";position:absolute;inset:-40px -10px;z-index:-1;border-radius:40px;
+    background:radial-gradient(60% 70% at 50% 0,rgba(14,124,90,.10),transparent 70%)}
+  .mock{background:var(--surface);border:1px solid var(--line);border-radius:22px;box-shadow:var(--sh-lg);
+    padding:28px;text-align:left}
+  .mock-top{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+  .mock-cat{font-size:12px;color:var(--ink-faint);border:1px solid var(--line);border-radius:999px;padding:4px 11px;display:inline-block;margin-bottom:9px}
+  .mock-name{font-weight:700;font-size:1.2rem;letter-spacing:-.01em}
+  .mock-verdict{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:15px;
+    color:var(--positive);background:var(--brand-soft);border:1px solid rgba(14,124,90,.28);border-radius:999px;padding:9px 16px;margin-top:12px}
+  .ring-box{display:grid;place-items:center;text-align:center}
+  .ring-num{font-weight:700;font-size:1.9rem;color:var(--brand-ink);line-height:1}
+  .ring-cap{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-top:3px}
+  .mock-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}
+  .mm{border:1px solid var(--line);border-radius:13px;padding:12px 14px}
+  .mm .l{font-size:11px;color:var(--ink-faint)}
+  .mm .v{font-weight:700;font-size:1.05rem;margin-top:3px}
+  .mm .t{display:inline-flex;align-items:center;gap:6px;font-size:11px;margin-top:5px}
+  .tdot{width:7px;height:7px;border-radius:50%}
+  .mm .plain{font-size:11.5px;color:var(--ink-dim);margin-top:7px;line-height:1.4}
 
   /* sections */
-  section{padding:56px 0}
-  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brand);margin-bottom:12px;text-align:center}
-  h2{font-size:clamp(1.5rem,4vw,2.1rem);font-weight:700;letter-spacing:-.02em;text-align:center;max-width:22ch;margin:0 auto}
-  .lede{text-align:center;color:var(--ink-dim);max-width:56ch;margin:16px auto 0}
+  section{padding:66px 0}
+  .kick{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--brand-ink);text-align:center;margin-bottom:14px}
+  h2{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:clamp(1.8rem,4.2vw,2.6rem);
+    letter-spacing:-.02em;text-align:center;max-width:20ch;margin:0 auto;line-height:1.08}
+  .lede{text-align:center;color:var(--ink-dim);max-width:56ch;margin:16px auto 0;font-size:1.05rem}
+  .band{background:var(--subtle);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 
-  .grid{display:grid;gap:16px;margin-top:40px}
+  .grid{display:grid;gap:18px;margin-top:46px}
   .g3{grid-template-columns:repeat(3,1fr)}
   .g2{grid-template-columns:repeat(2,1fr)}
-  @media(max-width:760px){.g3,.g2{grid-template-columns:1fr}}
-  .card{background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015));
-    border:1px solid var(--line);border-radius:18px;padding:26px}
-  .card .ico{font-size:24px;margin-bottom:14px;display:block}
-  .card h3{font-size:1.15rem;font-weight:700;margin-bottom:8px}
-  .card p{color:var(--ink-dim);font-size:.95rem}
-  .card ul{list-style:none;margin-top:14px;display:grid;gap:9px}
-  .card li{display:flex;gap:10px;color:var(--ink-dim);font-size:.93rem}
-  .card li::before{content:"";margin-top:8px;width:6px;height:6px;border-radius:50%;background:var(--brand);flex:none}
+  @media(max-width:780px){.g3,.g2{grid-template-columns:1fr}.mock-metrics{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:28px;box-shadow:var(--sh-sm);transition:.2s}
+  .card:hover{box-shadow:var(--sh);transform:translateY(-2px)}
+  .card .ico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:21px;background:var(--brand-soft);margin-bottom:16px}
+  .card h3{font-size:1.2rem;font-weight:700;margin-bottom:8px;letter-spacing:-.01em}
+  .card p{color:var(--ink-dim);font-size:.96rem}
+  .card ul{list-style:none;margin-top:15px;display:grid;gap:10px}
+  .card li{display:flex;gap:10px;color:var(--ink-dim);font-size:.94rem}
+  .card li svg{flex:none;margin-top:3px;color:var(--brand)}
 
-  /* flow */
-  .flow{display:flex;align-items:stretch;gap:14px;margin-top:40px;flex-wrap:wrap;justify-content:center}
-  .step{flex:1;min-width:180px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015));
-    border:1px solid var(--line);border-radius:16px;padding:22px;text-align:center}
-  .step .n{font-family:"JetBrains Mono",monospace;color:var(--brand);font-weight:600;font-size:13px}
-  .step h4{margin:8px 0 6px;font-size:1rem}
-  .step p{color:var(--ink-faint);font-size:.86rem}
+  /* how it works */
+  .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:46px}
+  @media(max-width:780px){.flow{grid-template-columns:1fr 1fr}}
+  .step{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px;box-shadow:var(--sh-sm)}
+  .step .n{font-family:Fraunces,serif;font-weight:600;color:var(--brand-ink);font-size:1.5rem}
+  .step h4{margin:10px 0 6px;font-size:1.02rem;font-weight:700}
+  .step p{color:var(--ink-faint);font-size:.88rem}
+
+  /* developer section */
+  .dev{display:grid;grid-template-columns:1.1fr 1fr;gap:28px;margin-top:46px;align-items:start}
+  @media(max-width:820px){.dev{grid-template-columns:1fr}}
+  .stackrow{display:flex;flex-wrap:wrap;gap:9px;margin-top:22px}
+  .pill{font-size:13px;font-weight:600;color:var(--ink-dim);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 12px}
+  .codecard{background:#0f1115;border-radius:16px;padding:20px 22px;box-shadow:var(--sh);overflow:auto}
+  .codecard pre{font-family:"SFMono-Regular",ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.7;color:#d7dbe3;white-space:pre}
+  .c-k{color:#7fd1b9}.c-s{color:#e6b98a}.c-c{color:#6b7488}.c-p{color:#8fb8ff}
+  .devlist{list-style:none;display:grid;gap:12px;margin-top:20px}
+  .devlist li{display:flex;gap:11px;color:var(--ink-dim);font-size:.96rem}
+  .devlist b{color:var(--ink)}
 
   /* versions */
-  .ver{display:flex;gap:16px;align-items:flex-start;padding:22px 24px;border:1px solid var(--line);
-    border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015));margin-top:14px}
-  .badge{flex:none;font-size:12px;font-weight:700;border-radius:8px;padding:5px 11px;margin-top:2px}
-  .b-done{color:var(--positive);background:rgba(52,211,153,.14)}
-  .b-prog{color:var(--caution);background:rgba(251,191,36,.14)}
-  .ver h3{font-size:1.05rem;margin-bottom:5px}
-  .ver p{color:var(--ink-dim);font-size:.93rem}
-  .loadbar{height:8px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:12px;max-width:280px}
-  .loadbar>i{display:block;height:100%;width:38%;border-radius:999px;
-    background:linear-gradient(90deg,var(--brand),var(--positive));animation:load 2.4s ease-in-out infinite}
-  @keyframes load{0%{width:12%}50%{width:62%}100%{width:12%}}
+  .ver{display:flex;gap:18px;align-items:flex-start;padding:24px;border:1px solid var(--line);border-radius:16px;background:var(--surface);box-shadow:var(--sh-sm);margin-top:16px}
+  .badge{flex:none;font-size:12px;font-weight:700;border-radius:8px;padding:6px 12px;margin-top:2px}
+  .b-done{color:#fff;background:var(--brand)}
+  .b-prog{color:var(--caution);background:rgba(180,83,9,.12)}
+  .ver h3{font-size:1.1rem;margin-bottom:5px;letter-spacing:-.01em}
+  .ver p{color:var(--ink-dim);font-size:.95rem}
+  .loadbar{height:8px;border-radius:999px;background:rgba(21,23,28,.08);overflow:hidden;margin-top:13px;max-width:300px}
+  .loadbar>i{display:block;height:100%;width:38%;border-radius:999px;background:linear-gradient(90deg,var(--brand),#34d399);animation:load 2.4s ease-in-out infinite}
+  @keyframes load{0%{width:14%}50%{width:64%}100%{width:14%}}
 
-  /* promises band */
-  .band{background:linear-gradient(180deg,rgba(124,156,255,.06),transparent);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  footer{border-top:1px solid var(--line);padding:46px 0 64px;color:var(--ink-faint);font-size:.9rem;text-align:center}
+  footer .disc{max-width:62ch;margin:0 auto 18px;line-height:1.6}
 
-  footer{border-top:1px solid var(--line);padding:40px 0 60px;color:var(--ink-faint);font-size:.86rem;text-align:center}
-  footer .disc{max-width:60ch;margin:0 auto 18px}
-  .reveal{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s cubic-bezier(.22,1,.36,1)}
+  .reveal{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s cubic-bezier(.22,1,.36,1)}
   .reveal.in{opacity:1;transform:none}
 </style>
 </head>
@@ -113,45 +143,77 @@
 
 <nav>
   <div class="wrap nav-in">
-    <div class="brand"><span class="mark">⚖️</span> Truthfolio</div>
-    <a class="btn btn-ghost" href="https://github.com/chamanthmvs/Truthfolio" target="_blank" rel="noopener">View on GitHub →</a>
+    <div class="brand"><span class="mark">⚖</span> Truthfolio</div>
+    <a class="btn btn-primary" href="https://github.com/chamanthmvs/Truthfolio" target="_blank" rel="noopener">View on GitHub →</a>
   </div>
 </nav>
 
 <header class="hero wrap">
-  <span class="chip"><span class="dot"></span> Honest · Evidence-backed · Plain English</span>
-  <h1>Should you keep that fund, drop it, or switch?</h1>
+  <span class="eyebrow"><span class="dot"></span> Honest · Evidence-backed · Plain English</span>
+  <h1 class="serif">Should you keep that fund, drop it, or <em>switch</em>?</h1>
   <p class="sub">Truthfolio gives you the honest answer about your mutual funds — computed from real market data, ranked against similar funds, and explained so clearly that anyone can follow the <em>why</em>.</p>
-  <div class="verdicts">
-    <span class="verdict v-cont">Continue</span>
-    <span class="verdict v-stop">Stop</span>
-    <span class="verdict v-shift">Shift</span>
-  </div>
   <div class="cta">
-    <a class="btn btn-primary" href="https://github.com/chamanthmvs/Truthfolio" target="_blank" rel="noopener">Explore the code</a>
-    <a class="btn btn-ghost" href="#how">See how it works</a>
+    <a class="btn btn-primary" href="https://github.com/chamanthmvs/Truthfolio" target="_blank" rel="noopener">Explore the project</a>
+    <a class="btn" href="#how">See how it works</a>
+  </div>
+
+  <!-- product mockup -->
+  <div class="mock-wrap reveal">
+    <div class="mock">
+      <div class="mock-top">
+        <div>
+          <span class="mock-cat">Flexi Cap Fund</span>
+          <div class="mock-name">Parag Parikh Flexi Cap Fund</div>
+          <div class="mock-verdict"><span class="tdot" style="background:var(--positive)"></span> Continue</div>
+        </div>
+        <div class="ring-box">
+          <svg width="128" height="128" viewBox="0 0 128 128">
+            <g transform="rotate(135 64 64)">
+              <circle cx="64" cy="64" r="56" fill="none" stroke="rgba(21,23,28,.08)" stroke-width="11" stroke-linecap="round" stroke-dasharray="263.9 351.9"/>
+              <circle cx="64" cy="64" r="56" fill="none" stroke="var(--brand)" stroke-width="11" stroke-linecap="round" stroke-dasharray="195 351.9"/>
+            </g>
+            <text x="64" y="60" text-anchor="middle" class="ring-num" fill="var(--brand-ink)" style="font-size:30px;font-weight:700;font-family:Inter">74</text>
+            <text x="64" y="78" text-anchor="middle" fill="var(--ink-faint)" style="font-size:9px;letter-spacing:1.5px;font-family:Inter">HEALTH / 100</text>
+          </svg>
+        </div>
+      </div>
+      <div class="mock-metrics">
+        <div class="mm">
+          <div class="l">5-Year Return (annualised)</div>
+          <div class="v">14.2%</div>
+          <div class="t" style="color:var(--positive)"><span class="tdot" style="background:var(--positive)"></span> Healthy pace</div>
+          <div class="plain">The average yearly growth over 5 years — like judging a student by 5 report cards, not one test.</div>
+        </div>
+        <div class="mm">
+          <div class="l">Sharpe Ratio</div>
+          <div class="v">0.93</div>
+          <div class="t" style="color:var(--positive)"><span class="tdot" style="background:var(--positive)"></span> 94th percentile vs peers</div>
+          <div class="plain">Was the bumpy ride worth it? It weighs how much you earned against how bumpy the ride was.</div>
+        </div>
+      </div>
+    </div>
   </div>
 </header>
 
 <!-- Promises -->
 <div class="band">
 <section class="wrap reveal">
-  <div class="eyebrow">What makes it different</div>
-  <h2>Built on three promises</h2>
+  <div class="kick">What makes it different</div>
+  <h2 class="serif">Built on three promises</h2>
   <p class="lede">Most tools either flatter every fund or drown you in numbers. Truthfolio does neither.</p>
   <div class="grid g3">
     <div class="card">
-      <span class="ico">🫡</span>
+      <div class="ico">🫡</div>
       <h3>Full honesty</h3>
       <p>If a fund is weak, we say so — even if it made you money. A fund that's up can still be a bad place for your money when better options exist.</p>
     </div>
     <div class="card">
-      <span class="ico">🧾</span>
+      <div class="ico">🧾</div>
       <h3>Evidence-based</h3>
-      <p>Every claim traces back to a real, computed number. Expand any verdict to see its sources and exactly how much each one is trusted.</p>
+      <p>Every claim traces back to a real, computed number. Open any verdict to see its sources and exactly how much each one is trusted.</p>
     </div>
     <div class="card">
-      <span class="ico">🧒</span>
+      <div class="ico">🧒</div>
       <h3>Explained simply</h3>
       <p>Every metric comes with an everyday-analogy explanation. “Was the bumpy ride worth it?” instead of “risk-adjusted return.”</p>
     </div>
@@ -161,29 +223,29 @@
 
 <!-- What you can do -->
 <section class="wrap reveal">
-  <div class="eyebrow">What you can do</div>
-  <h2>Review one fund, or your whole portfolio</h2>
+  <div class="kick">What you can do</div>
+  <h2 class="serif">Review one fund, or your whole portfolio</h2>
   <div class="grid g2">
     <div class="card">
-      <span class="ico">🔍</span>
+      <div class="ico">🔍</div>
       <h3>Review a single fund</h3>
       <p>Search any real, registered scheme and get the full picture:</p>
       <ul>
-        <li>A clear Continue / Stop / Shift verdict, health score and confidence</li>
-        <li>Returns, risk and consistency — each in plain English</li>
-        <li>How it ranks against similar funds</li>
-        <li>An evidence ledger you can open to see the proof</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> A clear Continue / Stop / Shift verdict, health score & confidence</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Returns, risk and consistency — each in plain English</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> How it ranks against similar funds</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> An evidence ledger you can open to see the proof</li>
       </ul>
     </div>
     <div class="card">
-      <span class="ico">📊</span>
+      <div class="ico">📊</div>
       <h3>Review your portfolio</h3>
       <p>Add your holdings with units and average buy price, and see:</p>
       <ul>
-        <li>Your real gain/loss and return, per fund and overall</li>
-        <li>A portfolio health score and verdict</li>
-        <li>Where your money sits, and if you're over-concentrated</li>
-        <li>Your best and worst performers, and what to reconsider</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Your real gain/loss and return, per fund and overall</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> A portfolio health score and verdict</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Where your money sits, and if you're over-concentrated</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Your best and worst performers, and what to reconsider</li>
       </ul>
     </div>
   </div>
@@ -192,8 +254,8 @@
 <!-- How it works -->
 <div class="band" id="how">
 <section class="wrap reveal">
-  <div class="eyebrow">How it works</div>
-  <h2>A verdict that's earned, not guessed</h2>
+  <div class="kick">How it works</div>
+  <h2 class="serif">A verdict that's earned, not guessed</h2>
   <div class="flow">
     <div class="step"><div class="n">01</div><h4>Pull real data</h4><p>Official NAV history for every fund, from public sources.</p></div>
     <div class="step"><div class="n">02</div><h4>Compute the numbers</h4><p>Returns, risk and consistency — calculated, never guessed.</p></div>
@@ -203,10 +265,56 @@
 </section>
 </div>
 
-<!-- Versions -->
+<!-- For developers -->
 <section class="wrap reveal">
-  <div class="eyebrow">Progress</div>
-  <h2>Where the project is</h2>
+  <div class="kick">Under the hood</div>
+  <h2 class="serif">For the technically curious</h2>
+  <p class="lede">The verdict is produced by a transparent, auditable scoring engine — not a black box. The LLM only explains the numbers; it never invents them or overrules the score.</p>
+  <div class="dev">
+    <div>
+      <ul class="devlist">
+        <li>⚙️ <span><b>Python + FastAPI</b> backend running a <b>LangGraph</b> pipeline: <span class="mono">quant → peers → evidence → synthesis → narrative</span>.</span></li>
+        <li>📈 <span><b>Deterministic quant core</b> — returns, rolling returns, volatility, Sharpe, Sortino, drawdown — computed with NumPy/Pandas from real NAV data.</span></li>
+        <li>🧾 <span><b>Evidence ledger + source-reliability gate</b>: every claim carries its source and a 0–1 trust score.</span></li>
+        <li>🎛️ <span><b>Transparent weighted scoring</b> turns metrics + peer ranks into a 0–100 health score and the final verdict.</span></li>
+        <li>🖥️ <span><b>Next.js + TypeScript</b> frontend streaming the reasoning live over Server-Sent Events.</span></li>
+        <li>🆓 <span>Runs on <b>free, public data</b> (AMFI + mfapi) — the core needs no API keys.</span></li>
+      </ul>
+      <div class="stackrow">
+        <span class="pill">Python</span><span class="pill">FastAPI</span><span class="pill">LangGraph</span>
+        <span class="pill">NumPy</span><span class="pill">Pandas</span><span class="pill">Next.js</span>
+        <span class="pill">TypeScript</span><span class="pill">Tailwind</span>
+      </div>
+      <div style="margin-top:22px">
+        <a class="btn" href="https://github.com/chamanthmvs/Truthfolio/blob/main/docs/TECHNICAL.md" target="_blank" rel="noopener">Read the technical docs →</a>
+      </div>
+    </div>
+    <div class="codecard">
+<pre><span class="c-c"># Ask for an honest review of one fund</span>
+<span class="c-k">GET</span> <span class="c-s">/api/review/stream?scheme_code=122639</span>
+
+<span class="c-c"># ← streamed, step by step</span>
+<span class="c-p">step</span>  Computed 8 metrics from 3294 NAV points
+<span class="c-p">step</span>  Compared against 18 same-category peers
+<span class="c-p">step</span>  Assembled evidence ledger (5 items)
+<span class="c-p">step</span>  Health 69/100 → verdict: <span class="c-k">Continue</span>
+
+<span class="c-p">result</span> {
+  <span class="c-s">"verdict"</span>: <span class="c-s">"Continue"</span>,
+  <span class="c-s">"health_score"</span>: <span class="c-k">69.1</span>,
+  <span class="c-s">"confidence"</span>: <span class="c-k">0.9</span>,
+  <span class="c-s">"metrics"</span>: [ <span class="c-c">/* each with a</span>
+     <span class="c-c">plain-English explainer */</span> ]
+}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- Versions -->
+<div class="band">
+<section class="wrap reveal">
+  <div class="kick">Progress</div>
+  <h2 class="serif">Where the project is</h2>
   <div class="ver">
     <span class="badge b-done">V1 ✓</span>
     <div><h3>Single-fund review</h3><p>Validated fund search, full metrics with plain-English explanations, peer ranking, a transparent health score and Continue/Stop/Shift verdict, and an inspectable evidence ledger.</p></div>
@@ -220,15 +328,15 @@
     <div><h3>Future versions</h3><p>In progress… loading.</p><div class="loadbar"><i></i></div></div>
   </div>
 </section>
+</div>
 
 <footer>
   <p class="disc">Truthfolio is educational analysis, not personalised investment advice. Verdicts are based on past performance, which never guarantees future results — and we're transparent about what we don't yet factor in.</p>
-  <p>Built for investors who'd rather hear the truth. · <a href="https://github.com/chamanthmvs/Truthfolio" target="_blank" rel="noopener" style="color:var(--ink-dim)">GitHub</a></p>
+  <p>Built for investors who'd rather hear the truth. · <a href="https://github.com/chamanthmvs/Truthfolio" target="_blank" rel="noopener" style="color:var(--brand-ink);font-weight:600">GitHub</a></p>
 </footer>
 
 <script>
-  // subtle reveal-on-scroll
-  const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
+  const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.1});
   document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
 </script>
 </body>

@@ -95,7 +95,7 @@ export default function PortfolioBuilder({ drafts, setDrafts, onAnalyze }: Props
             <button
               disabled={!ready}
               onClick={onAnalyze}
-              className="mt-4 w-full rounded-xl bg-brand py-3 text-sm font-semibold text-bg transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              className="mt-4 w-full rounded-xl bg-brand py-3 text-sm font-semibold text-white shadow-sm transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-ink-faint"
             >
               {ready
                 ? "Analyze my portfolio →"
@@ -134,7 +134,7 @@ function NumberField({
         value={value || ""}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
         placeholder="0"
-        className="w-24 rounded-lg border border-line bg-white/[0.03] px-2.5 py-1.5 text-sm text-ink outline-none transition focus:border-brand/50"
+        className="w-24 rounded-lg border border-line bg-bg px-2.5 py-1.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
       />
     </label>
   );

@@ -76,7 +76,7 @@ export default function SearchBar({ onSelect }: Props) {
 
   return (
     <div ref={boxRef} className="relative w-full">
-      <div className="glass-strong flex items-center gap-3 rounded-2xl px-5 py-4 shadow-2xl shadow-black/40">
+      <div className="glass-strong flex items-center gap-3 rounded-2xl px-5 py-4">
         <SearchIcon />
         <input
           value={query}
@@ -97,7 +97,8 @@ export default function SearchBar({ onSelect }: Props) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.16 }}
-            className="glass-strong absolute z-50 mt-2 max-h-[22rem] w-full overflow-auto rounded-2xl p-2 shadow-2xl shadow-black/60"
+            className="glass-strong absolute z-50 mt-2 max-h-[22rem] w-full overflow-auto rounded-2xl p-2 shadow-lg"
+            style={{ boxShadow: "var(--shadow-lg)" }}
           >
             {hits.map((h, i) => (
               <li key={h.code}>
@@ -105,7 +106,7 @@ export default function SearchBar({ onSelect }: Props) {
                   onMouseEnter={() => setActive(i)}
                   onClick={() => choose(h)}
                   className={`flex w-full items-center justify-between gap-4 rounded-xl px-4 py-3 text-left transition ${
-                    i === active ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"
+                    i === active ? "bg-brand/[0.08]" : "hover:bg-black/[0.035]"
                   }`}
                 >
                   <div className="min-w-0">
@@ -141,6 +142,6 @@ function SearchIcon() {
 
 function Spinner() {
   return (
-    <div className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+    <div className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-black/10 border-t-brand" />
   );
 }

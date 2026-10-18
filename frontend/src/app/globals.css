@@ -3,19 +3,26 @@
 @tailwind utilities;
 
 :root {
-  --bg: #07090f;
-  --bg-elev: #0c1019;
-  --ink: #e8ecf4;
-  --ink-dim: #9aa6bd;
-  --ink-faint: #64708a;
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.14);
+  /* Editorial Light — warm paper canvas, deep-emerald accent, crisp cards */
+  --bg: #fbfaf7;          /* warm paper */
+  --bg-subtle: #f3f2ec;   /* section bands */
+  --bg-elev: #ffffff;     /* cards */
+  --ink: #15171c;         /* near-black headline ink */
+  --ink-dim: #525864;     /* body */
+  --ink-faint: #8b909c;   /* captions */
+  --line: rgba(21, 23, 28, 0.09);
+  --line-strong: rgba(21, 23, 28, 0.16);
 
-  --positive: #34d399;
-  --neutral: #38bdf8;
-  --caution: #fbbf24;
-  --negative: #fb7185;
-  --brand: #7c9cff;
+  --positive: #0e7c5a;    /* emerald */
+  --neutral: #2563eb;     /* blue */
+  --caution: #b45309;     /* amber-700 */
+  --negative: #d52c3a;    /* red */
+  --brand: #0e7c5a;       /* deep emerald */
+  --brand-soft: rgba(14, 124, 90, 0.10);
+
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.04);
+  --shadow: 0 2px 6px rgba(16, 24, 40, 0.05), 0 12px 32px rgba(16, 24, 40, 0.08);
+  --shadow-lg: 0 8px 24px rgba(16, 24, 40, 0.08), 0 24px 60px rgba(16, 24, 40, 0.10);
 }
 
 * {
@@ -33,52 +40,52 @@ body {
 }
 
 body {
+  /* a whisper of emerald at the top — barely there, just enough to feel designed */
   background-image:
-    radial-gradient(900px 600px at 12% -10%, rgba(124, 156, 255, 0.10), transparent 60%),
-    radial-gradient(800px 500px at 100% 0%, rgba(52, 211, 153, 0.08), transparent 55%);
-  background-attachment: fixed;
+    radial-gradient(1200px 520px at 50% -340px, rgba(14, 124, 90, 0.06), transparent 70%);
+  background-repeat: no-repeat;
   min-height: 100vh;
 }
 
 ::selection {
-  background: rgba(124, 156, 255, 0.3);
+  background: rgba(14, 124, 90, 0.16);
 }
 
-/* Thin, unobtrusive scrollbars */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(21, 23, 28, 0.16);
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(21, 23, 28, 0.28);
   background-clip: content-box;
 }
 
 @layer components {
+  /* "glass" class names kept for compatibility; now crisp editorial cards */
   .glass {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+    background: var(--bg-elev);
     border: 1px solid var(--line);
-    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-sm);
   }
   .glass-strong {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025));
-    border: 1px solid var(--line-strong);
-    backdrop-filter: blur(16px);
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
   }
 }
 
 .shimmer {
   background: linear-gradient(
     100deg,
-    rgba(255, 255, 255, 0.04) 20%,
-    rgba(255, 255, 255, 0.10) 40%,
-    rgba(255, 255, 255, 0.04) 60%
+    rgba(21, 23, 28, 0.04) 20%,
+    rgba(21, 23, 28, 0.08) 40%,
+    rgba(21, 23, 28, 0.04) 60%
   );
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite linear;

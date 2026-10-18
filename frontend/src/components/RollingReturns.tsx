@@ -37,7 +37,7 @@ export default function RollingReturns({ rolling }: { rolling: RollingStat[] }) 
             {/* zero line */}
             {allMin < 0 && (
               <div
-                className="absolute inset-y-0 w-px bg-white/20"
+                className="absolute inset-y-0 w-px bg-black/20"
                 style={{ left: `${pos(0)}%` }}
               />
             )}

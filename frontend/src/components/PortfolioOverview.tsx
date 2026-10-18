@@ -133,12 +133,13 @@ export default function PortfolioOverview({ summary }: { summary: PortfolioSumma
   );
 }
 
-const MIX_COLORS = ["#7c9cff", "#34d399", "#fbbf24", "#fb7185", "#38bdf8", "#a78bfa", "#f472b6"];
+// Editorial-light categorical palette — saturated enough to read on a white track.
+const MIX_COLORS = ["#0e7c5a", "#2563eb", "#b45309", "#d52c3a", "#7c3aed", "#0891b2", "#be185d"];
 
 function CategoryMix({ summary }: { summary: PortfolioSummary }) {
   return (
     <div>
-      <div className="flex h-4 w-full overflow-hidden rounded-full bg-white/[0.06]">
+      <div className="flex h-4 w-full overflow-hidden rounded-full bg-black/[0.06]">
         {summary.category_mix.map((c, i) => (
           <motion.div
             key={c.category}

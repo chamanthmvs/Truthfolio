@@ -240,21 +240,21 @@ function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     ["portfolio", "My portfolio"],
   ];
   return (
-    <div className="inline-flex gap-1 rounded-full border border-line bg-white/[0.03] p-1">
+    <div className="glass inline-flex gap-1 rounded-full p-1">
       {items.map(([key, label]) => (
         <button
           key={key}
           onClick={() => setTab(key)}
-          className="relative rounded-full px-4 py-1.5 text-sm font-medium transition"
+          className="relative rounded-full px-4 py-1.5 text-sm font-semibold transition"
         >
           {tab === key && (
             <motion.span
               layoutId="tab-pill"
-              className="absolute inset-0 rounded-full bg-brand/20"
+              className="absolute inset-0 rounded-full bg-brand shadow-sm"
               transition={{ type: "spring", stiffness: 400, damping: 32 }}
             />
           )}
-          <span className={tab === key ? "relative text-ink" : "relative text-ink-faint"}>
+          <span className={tab === key ? "relative text-white" : "relative text-ink-faint hover:text-ink-dim"}>
             {label}
           </span>
         </button>
@@ -265,20 +265,29 @@ function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
 
 function Hero({ title, sub }: { title: string; sub: string }) {
   return (
-    <div className="text-center">
-      <motion.h1
-        initial={{ opacity: 0, y: 10 }}
+    <div className="pt-6 text-center sm:pt-10">
+      <motion.span
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mx-auto max-w-2xl text-3xl font-semibold leading-[1.1] tracking-tight text-ink sm:text-[2.6rem]"
+        transition={{ duration: 0.4 }}
+        className="mb-5 inline-flex items-center gap-2 rounded-full border border-line bg-bg-elev px-3.5 py-1.5 text-xs font-medium text-ink-dim shadow-sm"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-positive" />
+        Honest · Evidence-backed · Plain English
+      </motion.span>
+      <motion.h1
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        className="mx-auto max-w-[18ch] text-4xl font-extrabold leading-[1.04] tracking-[-0.03em] text-ink sm:text-6xl"
       >
         {title}
       </motion.h1>
       <motion.p
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.08 }}
-        className="mx-auto mt-4 max-w-xl text-base text-ink-dim"
+        transition={{ duration: 0.55, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+        className="mx-auto mt-5 max-w-[46ch] text-lg leading-relaxed text-ink-dim"
       >
         {sub}
       </motion.p>
