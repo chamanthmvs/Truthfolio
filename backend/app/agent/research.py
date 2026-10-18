@@ -23,13 +23,12 @@ from app.agent.state import EvidenceItem, SourceRef
 from app.config import get_settings
 from app.data import websearch
 
+# Kept deliberately to TWO broad queries per fund to conserve Tavily credits (one for the
+# core facts, one for recent news/regulatory). Each is a single "basic"-depth search.
 # (topic key, query template, tavily topic, recency days)
 _TOPICS: list[tuple[str, str, str, int | None]] = [
-    ("manager", '"{name}" fund manager change who manages tenure', "general", None),
-    ("cost", '"{name}" expense ratio TER direct plan cost', "general", None),
-    ("mandate", '"{name}" portfolio strategy style mandate what it invests in', "general", None),
-    ("size", '"{name}" AUM assets under management fund size', "general", None),
-    ("news", "{amc} {name} SEBI action news controversy risk", "news", 540),
+    ("facts", '"{name}" {amc} fund manager expense ratio AUM investment strategy mandate', "general", None),
+    ("news", '{amc} "{name}" SEBI action news risk controversy', "news", 540),
 ]
 
 _SYSTEM = """You are a meticulous, skeptical mutual-fund research analyst. From the SOURCES \

@@ -18,18 +18,20 @@ from app.agent.state import AgentState
 
 @lru_cache
 def build_graph():
+    # NOTE: web research is deliberately NOT in this graph. The standard review is 100%
+    # deterministic and free (no Tavily credits). Web research is a separate, explicit,
+    # user-triggered action (see /api/research) so limited credits are only ever spent on
+    # purpose, one fund at a time.
     g = StateGraph(AgentState)
     g.add_node("gather_quant", nodes.gather_quant)
     g.add_node("gather_peers", nodes.gather_peers)
-    g.add_node("gather_research", nodes.gather_research)
     g.add_node("build_evidence", nodes.build_evidence)
     g.add_node("synthesise", nodes.synthesise)
     g.add_node("narrate", nodes.narrate)
 
     g.add_edge(START, "gather_quant")
     g.add_edge("gather_quant", "gather_peers")
-    g.add_edge("gather_peers", "gather_research")
-    g.add_edge("gather_research", "build_evidence")
+    g.add_edge("gather_peers", "build_evidence")
     g.add_edge("build_evidence", "synthesise")
     g.add_edge("synthesise", "narrate")
     g.add_edge("narrate", END)

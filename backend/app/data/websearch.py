@@ -17,6 +17,30 @@ import httpx
 from app.config import get_settings
 from app.data import cache
 
+# App-wide daily budget guard: a hard ceiling on real Tavily network calls per day, so a bug
+# or a burst can never quietly drain limited credits. Cache hits don't count against it.
+_call_log: dict = {"date": None, "count": 0}
+
+
+def _budget_available() -> bool:
+    settings = get_settings()
+    today = date.today().isoformat()
+    if _call_log["date"] != today:
+        _call_log["date"] = today
+        _call_log["count"] = 0
+    return _call_log["count"] < settings.search_daily_cap
+
+
+def _budget_tick() -> None:
+    _call_log["count"] += 1
+
+
+def budget_status() -> dict:
+    settings = get_settings()
+    today = date.today().isoformat()
+    used = _call_log["count"] if _call_log["date"] == today else 0
+    return {"used_today": used, "daily_cap": settings.search_daily_cap}
+
 
 @dataclass(slots=True)
 class WebResult:
@@ -84,11 +108,15 @@ async def search_web(
             for r in cached
         ]
 
+    # Hard daily ceiling — protects limited credits even against bugs/bursts.
+    if not _budget_available():
+        return []
+
     payload: dict = {
         "api_key": settings.tavily_api_key,
         "query": query,
         "max_results": n,
-        "search_depth": "advanced",
+        "search_depth": settings.search_depth,  # "basic" by default (cheaper)
         "include_answer": False,
         "include_raw_content": False,
         "topic": topic,
@@ -101,6 +129,7 @@ async def search_web(
             resp = await client.post(settings.tavily_base, json=payload)
             resp.raise_for_status()
             data = resp.json()
+        _budget_tick()
     except (httpx.HTTPError, ValueError):
         return []  # never let a search failure break the review
 

@@ -7,7 +7,8 @@ import MetricCard from "./MetricCard";
 import PeerBars from "./PeerBars";
 import RollingReturns from "./RollingReturns";
 import EvidenceLedger from "./EvidenceLedger";
-import { CitedText, SourcesList } from "./Citations";
+import ResearchPanel from "./ResearchPanel";
+import { CitedText } from "./Citations";
 
 export default function FundReview({
   review,
@@ -46,7 +47,7 @@ export default function FundReview({
         <EvidenceLedger evidence={review.evidence} />
       </Panel>
 
-      <SourcesList footnotes={review.footnotes} />
+      <ResearchPanel schemeCode={review.scheme_code} />
 
       <Caveats caveats={review.caveats} />
     </div>

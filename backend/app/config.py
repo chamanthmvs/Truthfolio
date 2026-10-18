@@ -43,10 +43,14 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 4096
 
     # --- Web search (Tavily) for the evidence-research + market-pulse agents ---
+    # Credit-conservative defaults: research is ON-DEMAND (never automatic), uses "basic"
+    # depth (1 credit vs 2 for "advanced"), few results, long cache, and a hard daily cap.
     tavily_api_key: str | None = None
     tavily_base: str = "https://api.tavily.com/search"
-    search_max_results: int = 6
-    search_ttl_hours: int = 6  # cache results to control cost
+    search_depth: str = "basic"  # "basic" (1 credit) | "advanced" (2 credits)
+    search_max_results: int = 4
+    search_ttl_hours: int = 72  # fund facts change slowly — cache hard to avoid re-spending
+    search_daily_cap: int = 60  # safety valve: max Tavily network calls per day, app-wide
 
     @property
     def llm_enabled(self) -> bool:

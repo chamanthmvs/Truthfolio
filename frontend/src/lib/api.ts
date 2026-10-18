@@ -1,4 +1,11 @@
-import type { DraftHolding, PortfolioResponse, ReviewResponse, SchemeHit } from "./types";
+import type {
+  DraftHolding,
+  EvidenceItem,
+  Footnote,
+  PortfolioResponse,
+  ReviewResponse,
+  SchemeHit,
+} from "./types";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8077/api";
@@ -14,6 +21,21 @@ export async function searchSchemes(
   if (!res.ok) throw new Error(`search failed: ${res.status}`);
   const data = await res.json();
   return data.results as SchemeHit[];
+}
+
+export interface ResearchResponse {
+  enabled: boolean;
+  reason?: string;
+  evidence: EvidenceItem[];
+  footnotes: Footnote[];
+  budget?: { used_today: number; daily_cap: number };
+}
+
+/** On-demand web research for one fund — the only call that spends search credits. */
+export async function fetchResearch(schemeCode: string): Promise<ResearchResponse> {
+  const res = await fetch(`${API_BASE}/research?scheme_code=${encodeURIComponent(schemeCode)}`);
+  if (!res.ok) throw new Error(`research failed: ${res.status}`);
+  return res.json();
 }
 
 export interface StreamHandlers {
