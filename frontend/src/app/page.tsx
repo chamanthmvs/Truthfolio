@@ -9,6 +9,7 @@ import PortfolioBuilder from "@/components/PortfolioBuilder";
 import PortfolioOverview from "@/components/PortfolioOverview";
 import HoldingsTable from "@/components/HoldingsTable";
 import InsightsPanel from "@/components/InsightsPanel";
+import MarketPulseView from "@/components/MarketPulseView";
 import { streamReview, streamPortfolio } from "@/lib/api";
 import type {
   DraftHolding,
@@ -18,7 +19,7 @@ import type {
   SchemeHit,
 } from "@/lib/types";
 
-type Tab = "fund" | "portfolio";
+type Tab = "fund" | "portfolio" | "market";
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("fund");
@@ -28,7 +29,9 @@ export default function Home() {
       <Header />
       <Tabs tab={tab} setTab={setTab} />
       <div className="mt-8">
-        {tab === "fund" ? <FundFlow /> : <PortfolioFlow />}
+        {tab === "fund" && <FundFlow />}
+        {tab === "portfolio" && <PortfolioFlow />}
+        {tab === "market" && <MarketPulseView />}
       </div>
       <footer className="mt-16 border-t border-line pt-6 text-xs text-ink-faint">
         Educational analysis, not personalised investment advice. Built on public AMFI /
@@ -240,6 +243,7 @@ function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const items: [Tab, string][] = [
     ["fund", "Review a fund"],
     ["portfolio", "My portfolio"],
+    ["market", "Market pulse"],
   ];
   return (
     <div className="glass inline-flex gap-1 rounded-full p-1">

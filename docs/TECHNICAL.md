@@ -317,6 +317,7 @@ backend/
       appraisal.py         Source-reliability gate (web + computed)
       citations.py         Citation registry + inline [n] marker parsing
       insights.py          Insights specialist (fund + portfolio, cached)
+      market.py            Market Pulse specialist (cited, cached, credit-aware)
       llm.py               LLM narrative (evidence-grounded)
       llm_provider.py      Provider factory (Claude / Groq switch)
       portfolio.py         Portfolio orchestrator (per-fund fan-out)
@@ -507,6 +508,16 @@ never invents. Works for a single fund (`fund_insights` plan) and for a whole po
 **cached 12h per subject**, so it never silently spends tokens and is instant on repeat views.
 Degrades to deterministic insights from the evidence ledger without an LLM key.
 
+### 10.9 Market Pulse specialist — `agent/market.py`
+
+An honest, cited read on the broader market: **mood**, **triggers**, **bright spots**,
+**risks**, and an **attributed outlook**. Two (optionally three) recent-news Tavily searches →
+appraisal gate → LLM synthesis into a structured, cited pulse. Honesty guardrail: projections
+are always **attributed to a named source and framed as that source's view** — never the
+app's forecast, never advice. On-demand and **cached 6h** to spare credits; reports
+"unavailable" (not a fake) when keys are absent. Invoked directly by `GET /api/market-pulse`
+(it's market-scoped, not fund-scoped, so it doesn't run through the fund supervisor).
+
 ---
 
 ## 11. Scoring methodology (exact math)
@@ -603,6 +614,7 @@ Base path `/api`. Interactive docs at `/docs` (Swagger) and `/redoc`.
 | GET    | `/research?scheme_code=`| On-demand web research for one fund (spends credits; cited claims + footnotes + budget). |
 | GET    | `/insights?scheme_code=`| Structured insight cards for one fund (LLM, cached; deterministic fallback). |
 | POST   | `/insights/portfolio`   | Portfolio-level insight cards from a computed summary + brief holdings. |
+| GET    | `/market-pulse`         | Cited market pulse — mood, triggers, risks, attributed outlook (cached). |
 
 ### `GET /search`
 ```jsonc
@@ -806,11 +818,15 @@ Strict privacy: parsed **in memory only**, never stored or logged, password disc
 use, nothing sent to the LLM/web; only matched holdings returned (no PAN/folio). Holdings
 pre-fill the builder for the user to review before analysis.
 
+### ✅ V3 (part 4) — Market Pulse
+A cited, honest market read (mood, triggers, bright spots, risks, attributed analyst outlook)
+as its own tab + specialist. Credit-aware and cached; projections attributed to named sources,
+never presented as the app's forecast.
+
 ### Next
-- **Market Pulse tab** — overall Indian market + fund-relevant sentiment, triggers, cited
-  projections (attributed, never presented as Truthfolio's own forecast).
+- Fund-relevant market context inside the review (uses the Market Pulse specialist's `focus`).
 - True stock-level overlap; benchmark-index comparison; broader asset coverage; saved
-  portfolios; statement import.
+  portfolios; persistence/auth/observability for a production deploy.
 
 ---
 

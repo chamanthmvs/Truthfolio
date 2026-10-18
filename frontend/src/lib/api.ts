@@ -109,6 +109,23 @@ export async function streamReview(
   }
 }
 
+export interface MarketPulseResponse {
+  enabled: boolean;
+  reason?: string;
+  message?: string;
+  pulse: import("./types").MarketPulse | null;
+  footnotes: Footnote[];
+  budget?: { used_today: number; daily_cap: number };
+}
+
+/** Today's market pulse (cited, cached, credit-aware). */
+export async function fetchMarketPulse(focus?: string): Promise<MarketPulseResponse> {
+  const q = focus ? `?focus=${encodeURIComponent(focus)}` : "";
+  const res = await fetch(`${API_BASE}/market-pulse${q}`);
+  if (!res.ok) throw new Error(`market pulse failed: ${res.status}`);
+  return res.json();
+}
+
 /** Insight cards for one fund (LLM-synthesised, cached; deterministic fallback). */
 export async function fetchFundInsights(schemeCode: string): Promise<InsightsResponse> {
   const res = await fetch(`${API_BASE}/insights?scheme_code=${encodeURIComponent(schemeCode)}`);

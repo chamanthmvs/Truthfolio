@@ -123,6 +123,15 @@ async def insights(scheme_code: str = Query(...)):
     }
 
 
+@router.get("/market-pulse")
+async def market_pulse(focus: str | None = Query(None)):
+    """An honest, cited read on the market: mood, triggers, bright spots, risks, and
+    attributed analyst outlook. Credit-aware (cached); reports 'unavailable' without keys."""
+    from app.agent import market
+
+    return await market.generate_market_pulse(focus)
+
+
 @router.post("/insights/portfolio")
 async def insights_portfolio(payload: dict = Body(...)):
     """Portfolio-level insight cards from an already-computed summary (+ brief holdings)."""

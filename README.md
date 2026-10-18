@@ -35,6 +35,10 @@ It runs entirely on **free, public data** (AMFI + mfapi) — no API keys needed 
 - Best/worst performers and a clear "what to reconsider" list
 - Drill into any holding for its full fund review
 
+**Market pulse**
+- An honest, **cited** read on the market — mood, triggers, bright spots, risks, and an
+  **attributed** analyst outlook (named sources' views, never presented as advice)
+
 ## Quick start
 
 ```bash
@@ -103,7 +107,7 @@ reference, and extension points.
 
 - ✅ **V1** — single-fund review
 - ✅ **V2** — whole-portfolio review
-- ✅ **V3** — web research w/ citations · supervisor multi-agent · provider-switchable LLM · insights · CAS import
+- ✅ **V3** — web research w/ citations · supervisor multi-agent · multi-provider LLM · insights · CAS import · market pulse
 - 🚧 **Next** — *in progress… loading.*
 
 ## Disclaimer

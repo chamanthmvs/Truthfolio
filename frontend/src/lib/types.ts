@@ -162,6 +162,28 @@ export interface InsightsResponse {
   llm_used: boolean;
 }
 
+export interface MarketItem {
+  text: string;
+  tone: Tone;
+}
+
+export interface MarketSection {
+  kind: "triggers" | "highlights" | "watchouts" | "outlook";
+  title: string;
+  items: MarketItem[];
+}
+
+export interface MarketMood {
+  label: string;
+  tone: Tone;
+  summary: string;
+}
+
+export interface MarketPulse {
+  mood: MarketMood;
+  sections: MarketSection[];
+}
+
 export interface Footnote {
   n: number;
   title: string;
