@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from io import BytesIO
+from typing import Any
 
 from casparser import read_cas_pdf
 from casparser.exceptions import (
@@ -27,6 +28,7 @@ from casparser.exceptions import (
     IncorrectPasswordError,
     ParserException,
 )
+from pydantic import BaseModel
 
 from app.config import get_settings
 from app.data.amfi import SchemeMaster
@@ -48,13 +50,21 @@ def _to_date(raw) -> date | None:
     return None
 
 
+def _parsed_cas_dict(parsed: Any) -> dict:
+    if isinstance(parsed, BaseModel):
+        return parsed.model_dump(mode="python")
+    if isinstance(parsed, dict):
+        return parsed
+    raise TypeError(f"Unsupported CAS parser result: {type(parsed).__name__}")
+
+
 def import_cas(data: bytes, password: str, master: SchemeMaster) -> dict:
     """Parse CAS bytes and return a UI-ready result. Pure w.r.t. side effects (no I/O, no log)."""
     settings = get_settings()
     pwd = password or ""
 
     try:
-        parsed = read_cas_pdf(BytesIO(data), pwd, output="dict")
+        parsed_result = read_cas_pdf(BytesIO(data), pwd, output="dict")
     except IncorrectPasswordError:
         # No password supplied → the file simply needs one. Password supplied → it was wrong.
         if not pwd:
@@ -87,6 +97,7 @@ def import_cas(data: bytes, password: str, master: SchemeMaster) -> dict:
             "message": "We couldn't read this file as a CAS. Please upload a valid CAS PDF.",
         }
 
+    parsed = _parsed_cas_dict(parsed_result)
     period = parsed.get("statement_period") or {}
     stmt_date = _to_date(period.get("to") or period.get("to_"))
     age = (date.today() - stmt_date).days if stmt_date else None

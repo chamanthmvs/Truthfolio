@@ -34,3 +34,6 @@ skills/
 .cursorrules
 .aider*
 .github/copilot-instructions.md
+
+# Internal design/working notes — keep local, not public
+docs/UI.md

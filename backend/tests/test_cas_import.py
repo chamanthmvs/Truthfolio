@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-import pytest
+from casparser import CASData
 
 from app.data import cas_import
 from app.data.amfi import Scheme, SchemeMaster
@@ -96,6 +96,50 @@ def test_password_required(monkeypatch):
     assert res["status"] == "password_required"
     res2 = cas_import.import_cas(b"x", "wrongpass", _master())
     assert res2["status"] == "error" and res2["reason"] == "incorrect_password"
+
+
+def test_password_opened_cas_model_is_mapped(monkeypatch):
+    statement = CASData.model_validate(
+        {
+            "statement_period": {"from": "2026-01-01", "to": date.today().isoformat()},
+            "folios": [
+                {
+                    "folio": "123",
+                    "amc": "Example AMC",
+                    "schemes": [
+                        {
+                            "scheme": "Parag Parikh Flexi Cap Fund",
+                            "rta_code": "123",
+                            "rta": "CAMS",
+                            "amfi": "122639",
+                            "isin": "INF879O01027",
+                            "open": 500,
+                            "close": 500,
+                            "close_calculated": 500,
+                            "valuation": {
+                                "date": date.today().isoformat(),
+                                "nav": 90,
+                                "cost": 27500,
+                                "value": 45000,
+                            },
+                            "transactions": [],
+                        }
+                    ],
+                }
+            ],
+            "investor_info": {"name": "Private", "email": "", "address": "", "mobile": ""},
+            "cas_type": "SUMMARY",
+            "file_type": "CAMS",
+        }
+    )
+    monkeypatch.setattr(cas_import, "read_cas_pdf", lambda *args, **kwargs: statement)
+
+    result = cas_import.import_cas(b"decrypted-pdf-bytes", "correct-password", _master())
+
+    assert result["status"] == "ok"
+    assert result["holdings"][0]["scheme"]["code"] == "122639"
+    assert result["holdings"][0]["avg_nav"] == 55.0
+    assert "Private" not in str(result)
 
 
 def test_not_a_cas(monkeypatch):
