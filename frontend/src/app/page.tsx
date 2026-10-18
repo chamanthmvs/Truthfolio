@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import SearchBar from "@/components/SearchBar";
 import ThinkingStream from "@/components/ThinkingStream";
 import FundReview from "@/components/FundReview";
@@ -25,17 +25,35 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("fund");
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
+    <main className="app-shell mx-auto min-h-screen w-full max-w-7xl px-4 py-5 sm:px-7 sm:py-8 lg:px-10">
       <Header />
-      <Tabs tab={tab} setTab={setTab} />
-      <div className="mt-8">
-        {tab === "fund" && <FundFlow />}
-        {tab === "portfolio" && <PortfolioFlow />}
-        {tab === "market" && <MarketPulseView />}
+      <div className="app-intro">
+        <div>
+          <div className="app-eyebrow"><span /> YOUR MUTUAL FUNDS, IN CONTEXT</div>
+          <p className="app-intro-copy">
+            Clear-eyed analysis built from real data. <span>No hype. No hidden score.</span>
+          </p>
+        </div>
+        <div className="app-data-note">
+          <span className="app-data-indicator" />
+          <span>AMFI + mfapi public data</span>
+        </div>
       </div>
-      <footer className="mt-16 border-t border-line pt-6 text-xs text-ink-faint">
-        Educational analysis, not personalised investment advice. Built on public AMFI /
-        mfapi NAV data. Every verdict is backed by evidence you can inspect.
+      <Tabs tab={tab} setTab={setTab} />
+      <div className="mt-7">
+        <section id="fund-panel" role="tabpanel" aria-labelledby="fund-tab" hidden={tab !== "fund"}>
+          <FundFlow />
+        </section>
+        <section id="portfolio-panel" role="tabpanel" aria-labelledby="portfolio-tab" hidden={tab !== "portfolio"}>
+          <PortfolioFlow />
+        </section>
+        <section id="market-panel" role="tabpanel" aria-labelledby="market-tab" hidden={tab !== "market"}>
+          <MarketPulseView />
+        </section>
+      </div>
+      <footer className="app-footer mt-16">
+        <span>Truthfolio · Independent analysis, clearly explained.</span>
+        <span>Educational only — not personalised investment advice.</span>
       </footer>
     </main>
   );
@@ -226,43 +244,71 @@ function PortfolioFlow() {
 
 function Header() {
   return (
-    <div className="mb-8 flex items-center gap-2.5">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/20 text-brand">
+    <header className="app-header mb-7 flex items-center justify-between gap-4">
+      <a href="https://chamanthmvs.github.io/Truthfolio/" className="flex items-center gap-3" aria-label="Truthfolio home">
+      <div className="app-logo flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-white">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
           <path d="M3 17l5-5 4 4 8-9" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
-      <span className="text-sm font-semibold tracking-tight text-ink">
-        Truthfolio
-      </span>
-    </div>
+      <div>
+        <span className="block text-base font-semibold tracking-tight text-ink">Truthfolio</span>
+        <span className="block text-[11px] text-ink-faint">The evidence-first fund review</span>
+      </div>
+      </a>
+      <a
+        href="https://github.com/chamanthmvs/Truthfolio/blob/main/docs/TECHNICAL.md"
+        target="_blank"
+        rel="noreferrer"
+        className="app-guide-link"
+      >
+        How it works <span aria-hidden="true">↗</span>
+      </a>
+    </header>
   );
 }
 
 function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
-  const items: [Tab, string][] = [
-    ["fund", "Review a fund"],
-    ["portfolio", "My portfolio"],
-    ["market", "Market pulse"],
+  const items: { key: Tab; label: string; caption: string; icon: string }[] = [
+    { key: "fund", label: "Fund review", caption: "One fund, examined", icon: "↗" },
+    { key: "portfolio", label: "Portfolio", caption: "Your holdings, together", icon: "◫" },
+    { key: "market", label: "Market pulse", caption: "The wider picture", icon: "⌁" },
   ];
+  function handleTabKey(event: React.KeyboardEvent<HTMLButtonElement>, current: Tab) {
+    const index = items.findIndex((item) => item.key === current);
+    let next = index;
+    if (event.key === "ArrowRight") next = (index + 1) % items.length;
+    else if (event.key === "ArrowLeft") next = (index - 1 + items.length) % items.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = items.length - 1;
+    else return;
+    event.preventDefault();
+    const nextTab = items[next].key;
+    setTab(nextTab);
+    document.getElementById(`${nextTab}-tab`)?.focus();
+  }
   return (
-    <div className="glass inline-flex gap-1 rounded-full p-1">
-      {items.map(([key, label]) => (
+    <div className="app-tabs" role="tablist" aria-label="Analysis type">
+      {items.map(({ key, label, caption, icon }) => (
         <button
+          id={`${key}-tab`}
           key={key}
           onClick={() => setTab(key)}
-          className="relative rounded-full px-4 py-1.5 text-sm font-semibold transition"
+          role="tab"
+          aria-selected={tab === key}
+          aria-controls={`${key}-panel`}
+          tabIndex={tab === key ? 0 : -1}
+          onKeyDown={(event) => handleTabKey(event, key)}
+          className={`app-tab${tab === key ? " is-active" : ""}`}
         >
-          {tab === key && (
-            <motion.span
-              layoutId="tab-pill"
-              className="absolute inset-0 rounded-full bg-brand shadow-sm"
-              transition={{ type: "spring", stiffness: 400, damping: 32 }}
-            />
-          )}
-          <span className={tab === key ? "relative text-white" : "relative text-ink-faint hover:text-ink-dim"}>
-            {label}
+          <span className="app-tab-icon">
+            {icon}
           </span>
+          <span className="app-tab-text">
+            <span className="app-tab-label">{label}</span>
+            <span className="app-tab-caption">{caption}</span>
+          </span>
+          {tab === key && <span className="app-tab-active-mark" />}
         </button>
       ))}
     </div>
@@ -271,21 +317,21 @@ function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
 
 function Hero({ title, sub }: { title: string; sub: string }) {
   return (
-    <div className="pt-6 text-center sm:pt-10">
+    <div className="app-hero pt-7 text-center sm:pt-12">
       <motion.span
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="mb-5 inline-flex items-center gap-2 rounded-full border border-line bg-bg-elev px-3.5 py-1.5 text-xs font-medium text-ink-dim shadow-sm"
+        className="app-hero-eyebrow mb-5 inline-flex items-center gap-2 rounded-full border border-line bg-bg-elev px-3.5 py-1.5 text-xs font-medium text-ink-dim shadow-sm"
       >
         <span className="h-1.5 w-1.5 rounded-full bg-positive" />
-        Honest · Evidence-backed · Plain English
+        No hype <span>·</span> No jargon <span>·</span> Just evidence
       </motion.span>
       <motion.h1
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-        className="mx-auto max-w-[18ch] text-4xl font-extrabold leading-[1.04] tracking-[-0.03em] text-ink sm:text-6xl"
+        className="app-hero-title mx-auto max-w-[18ch] text-4xl font-extrabold leading-[1.04] tracking-[-0.03em] text-ink sm:text-6xl"
       >
         {title}
       </motion.h1>
@@ -293,7 +339,7 @@ function Hero({ title, sub }: { title: string; sub: string }) {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-        className="mx-auto mt-5 max-w-[46ch] text-lg leading-relaxed text-ink-dim"
+        className="mx-auto mt-5 max-w-[46ch] text-base leading-relaxed text-ink-dim sm:text-lg"
       >
         {sub}
       </motion.p>

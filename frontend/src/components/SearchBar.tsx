@@ -13,6 +13,7 @@ export default function SearchBar({ onSelect }: Props) {
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SchemeHit[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -21,9 +22,12 @@ export default function SearchBar({ onSelect }: Props) {
     if (query.trim().length < 2) {
       setHits([]);
       setOpen(false);
+      setSearchError("");
+      setLoading(false);
       return;
     }
     const ctrl = new AbortController();
+    setSearchError("");
     const t = setTimeout(async () => {
       setLoading(true);
       try {
@@ -31,10 +35,14 @@ export default function SearchBar({ onSelect }: Props) {
         setHits(results);
         setOpen(true);
         setActive(0);
-      } catch {
-        /* aborted or failed */
+      } catch (error) {
+        if (!ctrl.signal.aborted) {
+          setHits([]);
+          setOpen(true);
+          setSearchError(error instanceof Error ? error.message : "Search is temporarily unavailable.");
+        }
       } finally {
-        setLoading(false);
+        if (!ctrl.signal.aborted) setLoading(false);
       }
     }, 180);
     return () => {
@@ -55,6 +63,7 @@ export default function SearchBar({ onSelect }: Props) {
     setQuery("");
     setHits([]);
     setOpen(false);
+    setSearchError("");
     onSelect(hit);
   }
 
@@ -76,7 +85,7 @@ export default function SearchBar({ onSelect }: Props) {
 
   return (
     <div ref={boxRef} className="relative w-full">
-      <div className="glass-strong flex items-center gap-3 rounded-2xl px-5 py-4">
+      <div className="search-shell glass-strong flex items-center gap-3 rounded-2xl px-5 py-4">
         <SearchIcon />
         <input
           value={query}
@@ -86,13 +95,24 @@ export default function SearchBar({ onSelect }: Props) {
           placeholder="Search a mutual fund — e.g. Parag Parikh Flexi Cap, HDFC Mid Cap…"
           className="w-full bg-transparent text-base text-ink placeholder:text-ink-faint outline-none"
           aria-label="Search mutual funds"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={open && hits.length > 0 ? "scheme-search-results" : undefined}
+          aria-activedescendant={open && hits[active] ? `scheme-option-${hits[active].code}` : undefined}
+          aria-busy={loading}
         />
-        {loading && <Spinner />}
+        {loading ? <Spinner /> : query.length >= 2 && !searchError && hits.length > 0 ? (
+          <span className="search-count">{hits.length} matches</span>
+        ) : null}
       </div>
 
       <AnimatePresence>
         {open && hits.length > 0 && (
           <motion.ul
+            id="scheme-search-results"
+            role="listbox"
+            aria-label="Matching mutual fund schemes"
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
@@ -101,10 +121,11 @@ export default function SearchBar({ onSelect }: Props) {
             style={{ boxShadow: "var(--shadow-lg)" }}
           >
             {hits.map((h, i) => (
-              <li key={h.code}>
+              <li key={h.code} id={`scheme-option-${h.code}`} role="option" aria-selected={i === active}>
                 <button
                   onMouseEnter={() => setActive(i)}
                   onClick={() => choose(h)}
+                  tabIndex={-1}
                   className={`flex w-full items-center justify-between gap-4 rounded-xl px-4 py-3 text-left transition ${
                     i === active ? "bg-brand/[0.08]" : "hover:bg-black/[0.035]"
                   }`}
@@ -128,7 +149,7 @@ export default function SearchBar({ onSelect }: Props) {
         )}
 
         {/* No-match state: say so plainly instead of showing an empty dropdown. */}
-        {open && !loading && query.trim().length >= 2 && hits.length === 0 && (
+        {open && !loading && !searchError && query.trim().length >= 2 && hits.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -142,6 +163,22 @@ export default function SearchBar({ onSelect }: Props) {
               We couldn&apos;t find a match for &ldquo;{query.trim()}&rdquo;. Only real,
               AMFI-registered schemes can be analysed — check the spelling or try the
               fund&apos;s official name.
+            </div>
+          </motion.div>
+        )}
+        {open && searchError && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.16 }}
+            className="glass-strong absolute z-50 mt-2 w-full rounded-2xl p-5 text-center"
+            role="alert"
+            style={{ boxShadow: "var(--shadow-lg)" }}
+          >
+            <div className="text-sm font-medium text-negative">Search couldn&apos;t reach the fund list</div>
+            <div className="mt-1.5 text-xs leading-relaxed text-ink-faint">
+              Check your connection and try again. {searchError}
             </div>
           </motion.div>
         )}
@@ -161,6 +198,6 @@ function SearchIcon() {
 
 function Spinner() {
   return (
-    <div className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-black/10 border-t-brand" />
+    <span className="search-spinner" role="status" aria-label="Searching schemes" />
   );
 }

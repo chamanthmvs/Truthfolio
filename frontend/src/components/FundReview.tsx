@@ -26,9 +26,17 @@ export default function FundReview({
 
       <Narrative review={review} />
 
+      <nav className="review-jumpnav" aria-label="Jump to a review section">
+        <span>ON THIS PAGE</span>
+        <a href="#review-metrics">The numbers</a>
+        <a href="#review-peers">Peer comparison</a>
+        <a href="#review-evidence">Evidence</a>
+        <a href="#review-research">Deep research</a>
+      </nav>
+
       <InsightsPanel mode="fund" schemeCode={review.scheme_code} />
 
-      <Panel title="The numbers — explained like you're new to this" hint="Tap ⓘ for more depth">
+      <Panel id="review-metrics" title="The numbers — explained like you're new to this" hint="Tap ⓘ for more depth">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {review.metrics.map((m, i) => (
             <MetricCard key={m.key} metric={m} index={i} />
@@ -36,21 +44,21 @@ export default function FundReview({
         </div>
       </Panel>
 
-      <Panel title="How it stacks up against peers">
+      <Panel id="review-peers" title="How it stacks up against peers">
         <PeerBars peers={review.peers} />
       </Panel>
 
       {review.rolling.length > 0 && (
-        <Panel title="Rolling returns — the honest performance picture">
+        <Panel id="review-rolling" title="Rolling returns — the honest performance picture">
           <RollingReturns rolling={review.rolling} />
         </Panel>
       )}
 
-      <Panel title="Evidence ledger — nothing is taken on faith">
+      <Panel id="review-evidence" title="Evidence ledger — nothing is taken on faith">
         <EvidenceLedger evidence={review.evidence} />
       </Panel>
 
-      <ResearchPanel schemeCode={review.scheme_code} />
+      <div id="review-research"><ResearchPanel schemeCode={review.scheme_code} /></div>
 
       <Caveats caveats={review.caveats} />
     </div>
@@ -93,16 +101,18 @@ function PersonalStrip({ personal }: { personal: PersonalHolding }) {
 }
 
 function Panel({
+  id,
   title,
   hint,
   children,
 }: {
+  id?: string;
   title: string;
   hint?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="glass rounded-2xl p-5 sm:p-6">
+    <section id={id} className="glass rounded-2xl p-5 sm:p-6">
       <div className="mb-4 flex items-end justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-dim">{title}</h2>
         {hint && <span className="text-[11px] text-ink-faint">{hint}</span>}

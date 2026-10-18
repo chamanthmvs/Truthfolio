@@ -1,857 +1,984 @@
-# Truthfolio — Technical Documentation
+# Truthfolio — product and engineering guide
 
-> Complete engineering reference for contributors and curious developers. For the plain-English
-> overview, see the [README](../README.md) or the [landing page](https://chamanthmvs.github.io/Truthfolio/).
+> A practical, code-aligned guide to what Truthfolio does, how a request travels through the
+> system, how each number is produced, and where to make changes. This document describes the
+> implementation in this repository rather than an aspirational architecture.
 
-Truthfolio is an **evidence-backed, honest reviewer for Indian mutual funds**. Give it a fund
-(or a whole portfolio) and it returns a clear verdict — **Continue / Stop / Shift** per fund,
-**Healthy / Minor tweaks / Needs rebalancing** for a portfolio — where every verdict is
-computed from real NAV data, ranked against peers, and explained in plain language.
+**Audience:** contributors, reviewers, and anyone who wants to understand how the application
+works before changing it.
 
-This document explains exactly how it works, end to end, so any engineer can read it, run it,
-reason about it, and extend it.
+**Product in one sentence:** Truthfolio reviews Indian mutual funds and portfolios using
+public NAV data, transparent calculations, peer comparisons, and plain-language explanations.
 
 ---
 
-## Table of contents
+## Contents
 
-1. [Design principles (the USP)](#1-design-principles-the-usp)
-2. [Tech stack](#2-tech-stack)
-3. [Quick start](#3-quick-start)
-4. [Configuration](#4-configuration)
-5. [System architecture](#5-system-architecture)
-6. [Request lifecycle](#6-request-lifecycle)
-7. [Repository layout](#7-repository-layout)
-8. [Data layer](#8-data-layer)
-9. [Analysis layer](#9-analysis-layer)
-10. [Agent layer (LangGraph)](#10-agent-layer-langgraph)
-11. [Scoring methodology (exact math)](#11-scoring-methodology-exact-math)
-12. [Portfolio methodology](#12-portfolio-methodology)
+1. [Start here](#1-start-here)
+2. [Principles and product boundaries](#2-principles-and-product-boundaries)
+3. [Repository map](#3-repository-map)
+4. [System architecture](#4-system-architecture)
+5. [Run the project](#5-run-the-project)
+6. [Configuration and optional services](#6-configuration-and-optional-services)
+7. [Fund review, step by step](#7-fund-review-step-by-step)
+8. [Portfolio review, step by step](#8-portfolio-review-step-by-step)
+9. [CAS import and privacy](#9-cas-import-and-privacy)
+10. [Research, insights, and Market Pulse](#10-research-insights-and-market-pulse)
+11. [Data sources and caching](#11-data-sources-and-caching)
+12. [Analysis and scoring](#12-analysis-and-scoring)
 13. [API reference](#13-api-reference)
-14. [Frontend architecture](#14-frontend-architecture)
-15. [Testing](#15-testing)
-16. [Performance, caching & concurrency](#16-performance-caching--concurrency)
-17. [Extending the system](#17-extending-the-system)
-18. [Deployment notes](#18-deployment-notes)
-19. [Roadmap](#19-roadmap)
-20. [Honesty & compliance](#20-honesty--compliance)
-21. [Glossary (plain-English metric definitions)](#21-glossary)
+14. [Frontend architecture and interaction model](#14-frontend-architecture-and-interaction-model)
+15. [Validation and tests](#15-validation-and-tests)
+16. [Operational characteristics and limitations](#16-operational-characteristics-and-limitations)
+17. [How to extend Truthfolio](#17-how-to-extend-truthfolio)
+18. [Deployment](#18-deployment)
+19. [Current product scope](#19-current-product-scope)
+20. [Plain-English glossary](#20-plain-english-glossary)
 
 ---
 
-## 1. Design principles (the USP)
+## 1. Start here
 
-Every feature must serve all three principles, or it does not ship:
+Truthfolio answers two related questions:
 
-1. **Full honesty** — no flattery, no hedging, no sales tone. A fund that made money can still
-   be a bad choice; the app says so.
-2. **Evidence-based** — every claim traces to a computed, source-scored fact. Nothing is
-   asserted without its receipt. The LLM may *explain* numbers but never *invents* them.
-3. **Child-level plain explanation** — a person with zero finance background understands what
-   each number means and what to do about it. Jargon is always explained in the same breath.
+- **Fund:** “How does this fund look when its returns, risk, consistency, and peers are
+  considered together?”
+- **Portfolio:** “What do my holdings add up to, how are they distributed, and which parts
+  deserve another look?”
 
-These are not marketing lines; they are architectural constraints. The verdict is produced by
-a **deterministic, auditable scoring engine** (not an LLM), computed numbers are the only
-inputs to a verdict, and every metric ships with a plain-language explainer.
+The result is an educational assessment, not a promise or a personal investment instruction.
+The core experience works without paid APIs or model credentials. It searches the official
+AMFI scheme universe, obtains NAV history from mfapi.in, computes metrics, compares a sample of
+same-category schemes, and applies a deterministic scoring rule. Optional language-model and
+web-search features add explanation or cited context; they are separate from the core
+calculation.
 
----
+### Important vocabulary
 
-## 2. Tech stack
-
-| Layer    | Technology                                                             |
-| -------- | ---------------------------------------------------------------------- |
-| Backend  | Python 3.11+ (developed on 3.13), FastAPI, Uvicorn                      |
-| Workflow | LangGraph (state-graph orchestration)                                  |
-| Quant    | NumPy, Pandas                                                          |
-| Search   | RapidFuzz (fuzzy typeahead over the AMFI scheme master)                |
-| LLM      | Claude via `langchain-anthropic` — **optional**, reasoning layer only  |
-| Frontend | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS 3, Framer Motion |
-| Tooling  | `uv` (Python env/deps), `npm` (Node)                                   |
-| Data     | AMFI `NAVAll.txt`, `mfapi.in` — free, public, no key                   |
-
-**Key architectural decision:** the entire deterministic core (search → metrics → peers →
-scoring → verdict) runs with **zero credentials** on free public data. The LLM is an optional
-enhancement that only writes human-readable narrative; disabling it degrades gracefully to a
-transparent deterministic summary.
+| Term | What it means in this project |
+| --- | --- |
+| Scheme | A real AMFI-registered mutual-fund option identified by its scheme code. |
+| NAV | Net asset value: the published per-unit value of a scheme. |
+| Review | A fund's computed metrics, peer ranks, evidence, score, verdict, narrative, and caveats. |
+| Holding | A user's position in a scheme, represented by units and average purchase NAV. |
+| Specialist | A focused LangGraph node, such as the quant, peer, verdict, or narrative step. |
+| Evidence item | A statement used to explain a review, with direction, weight, confidence, and source. |
+| SSE | Server-Sent Events: a stream of named events sent from the API to the browser. |
 
 ---
 
-## 3. Quick start
+## 2. Principles and product boundaries
 
-### Prerequisites
-- Python **3.11+** and [`uv`](https://docs.astral.sh/uv/)
-- Node **18+** and npm
+The implementation is organized around three product principles:
 
-### One command (both servers)
+1. **Say what the evidence supports.** The Continue / Stop / Shift result comes from
+   `backend/app/agent/verdict.py`, not from an LLM.
+2. **Make claims inspectable.** Computed evidence points to the metric or peer comparison that
+   produced it. Optional web claims pass through appraisal and carry citations.
+3. **Explain without assuming expertise.** Each metric can include a short plain-language
+   explanation, a fuller meaning, why it matters, and how to read it.
+
+### What the LLM can and cannot do
+
+- It **can** write the narrative around a result whose verdict has already been computed.
+- It **can** turn existing fund or portfolio data into optional insight cards.
+- It **can** extract cited claims from appraised web-search results for the explicit research
+  experience.
+- It **does not** calculate NAV returns, set the deterministic fund verdict, or supply missing
+  quantitative values.
+- Market Pulse is different from the deterministic review: its short synthesis depends on
+  current web results and is unavailable when its required services are not configured.
+
+### What the product does not claim
+
+Truthfolio is educational analysis, not personalised financial advice. Portfolio returns are
+total returns from an average cost basis, not annualised returns: purchase dates are not
+collected. Portfolio concentration is measured by fund and category weights; there is no
+stock-level holdings-overlap analysis. The current scoring model does not incorporate every
+qualitative fund attribute, such as manager changes or mandate drift.
+
+---
+
+## 3. Repository map
+
+```text
+.
+├── backend/
+│   ├── app/
+│   │   ├── api/routes.py            HTTP routes, JSON responses, and SSE streams
+│   │   ├── agent/                   LangGraph supervisor and task specialists
+│   │   ├── analysis/                Pure metrics, peer ranks, portfolio math, explainers
+│   │   ├── data/                    AMFI, mfapi, cache, CAS parser, Tavily client
+│   │   ├── models/schemas.py        Pydantic request/response models
+│   │   ├── config.py                Environment-backed settings
+│   │   └── main.py                  FastAPI application and startup lifecycle
+│   ├── tests/                       Quant, CAS-import, and citation tests
+│   └── pyproject.toml               Python dependencies and pytest/Ruff config
+├── frontend/
+│   ├── src/app/                     Next.js App Router page, layout, and global styles
+│   ├── src/components/              Search, reviews, portfolio, research, and chart UI
+│   ├── src/lib/                     API streaming, shared types, and formatters
+│   └── package.json                 Next.js, React, TypeScript, Tailwind, Framer Motion
+├── docs/
+│   ├── index.html                   Static GitHub Pages product landing page
+│   └── TECHNICAL.md                 This guide
+├── dev.sh                           Starts the local API and web app together
+└── README.md                        Project overview and quick start
+```
+
+### Backend modules by responsibility
+
+| Area | Main files | Responsibility |
+| --- | --- | --- |
+| HTTP/API | `backend/app/api/routes.py`, `backend/app/models/schemas.py` | Input validation, endpoint behavior, and response shapes. |
+| Orchestration | `backend/app/agent/supervisor.py`, `graph.py`, `nodes.py`, `state.py` | Task plans, specialist routing, state, and execution steps. |
+| Scoring | `backend/app/agent/verdict.py` | Evidence generation and deterministic fund score/verdict. |
+| Quant | `backend/app/analysis/metrics.py`, `peers.py` | NAV-derived metrics and peer percentile ranks. |
+| Portfolio | `backend/app/agent/portfolio.py`, `backend/app/analysis/portfolio.py` | Per-holding review, personal values, and portfolio aggregation. |
+| Sources | `backend/app/data/amfi.py`, `navapi.py`, `websearch.py`, `cache.py` | External data access, normalization, caching, and search budget. |
+| Optional synthesis | `backend/app/agent/research.py`, `appraisal.py`, `citations.py`, `insights.py`, `market.py`, `llm.py`, `llm_provider.py` | Research, source scoring, citations, insight cards, Market Pulse, and model access. |
+| CAS | `backend/app/data/cas_import.py` | Parse a statement and match active holdings to AMFI schemes. |
+| Shared review output | `backend/app/analysis/review_view.py` | Canonical response assembler shared by single reviews and portfolio holdings. |
+
+### Frontend modules by responsibility
+
+| Area | Main files | Responsibility |
+| --- | --- | --- |
+| App shell and flows | `frontend/src/app/page.tsx` | Three tabs and the fund / portfolio phase flows. |
+| Search | `frontend/src/components/SearchBar.tsx` | Debounced scheme typeahead and keyboard selection. |
+| Fund review | `FundReview.tsx`, `VerdictCard.tsx`, `MetricCard.tsx`, `PeerBars.tsx`, `RollingReturns.tsx`, `EvidenceLedger.tsx` | Explain and inspect a complete review. |
+| Portfolio | `PortfolioBuilder.tsx`, `PortfolioOverview.tsx`, `HoldingsTable.tsx` | Import or enter holdings, inspect aggregate results, drill into a fund. |
+| Optional features | `ResearchPanel.tsx`, `InsightsPanel.tsx`, `MarketPulseView.tsx`, `Citations.tsx` | On-demand content and source links. |
+| Transport and models | `frontend/src/lib/api.ts`, `types.ts`, `format.ts` | Fetch/SSE transport, shared data contracts, display formatting. |
+| Visual system | `frontend/src/app/globals.css`, `BackgroundMotif.tsx`, Tailwind config | Design tokens, backgrounds, typography, and reusable visual utilities. |
+
+---
+
+## 4. System architecture
+
+### 4.1 The whole system
+
+```mermaid
+flowchart TB
+    Browser["Next.js / React UI"]
+    API["FastAPI routes<br/>JSON + Server-Sent Events"]
+    Supervisor["LangGraph supervisor<br/>ordered, deterministic task plan"]
+    Quant["Quant specialist"]
+    Peers["Peer specialist"]
+    Evidence["Evidence builder"]
+    Verdict["Verdict specialist"]
+    Narrator["Narrative specialist"]
+    Research["Research specialist"]
+    Insights["Insights specialist"]
+    Market["Market Pulse service"]
+    AMFI[("AMFI scheme master")]
+    MFAPI[("mfapi.in NAV history")]
+    Cache[("Local JSON TTL cache")]
+    Tavily[("Tavily web search")]
+    LLM[("Claude or Groq<br/>optional")]
+
+    Browser <-->|"HTTP / SSE"| API
+    API --> Supervisor
+    Supervisor --> Quant
+    Supervisor --> Peers
+    Supervisor --> Evidence
+    Supervisor --> Verdict
+    Supervisor --> Narrator
+    Supervisor -. "explicit research task" .-> Research
+    Supervisor -. "explicit insights task" .-> Insights
+    API --> Market
+    Quant --> MFAPI
+    Peers --> AMFI
+    Peers --> MFAPI
+    API --> AMFI
+    AMFI -.-> Cache
+    MFAPI -.-> Cache
+    Tavily -.-> Cache
+    Research --> Tavily
+    Market --> Tavily
+    Research -. "appraise + extract cited claims" .-> LLM
+    Market -. "cited synthesis" .-> LLM
+    Insights -. "data-grounded cards" .-> LLM
+    Narrator -. "explain computed verdict" .-> LLM
+```
+
+**Reading the diagram:** the browser calls one API. Fund-review work is run through the
+supervisor's ordered plan. Market Pulse is a separate market-scoped service. External NAV
+history is cached; search/LLM work happens only on the relevant optional path.
+
+### 4.2 The supervisor and its plans
+
+`backend/app/agent/supervisor.py` owns a `StateGraph`. The supervisor reads a task name, loads
+that task's ordered specialist list, dispatches its first step, and receives control again
+after the specialist returns. Routing depends on the remaining plan, not on an LLM decision.
+
+| Task | Ordered plan | Typical caller |
+| --- | --- | --- |
+| `fund_review` | `gather_quant` → `gather_peers` → `build_evidence` → `synthesise` → `narrate` | Fund JSON endpoint, fund SSE endpoint, portfolio holding. |
+| `fund_review_deep` | Quant → peers → research → evidence → verdict → narrative | Available through `review_fund(deep=True)`; the current UI research panel uses the separate on-demand path. |
+| `research_only` | `gather_research` | `GET /api/research`. |
+| `fund_insights` | Quant → peers → evidence → verdict → `generate_insights` | `GET /api/insights`. |
+
+Market Pulse does not go through this supervisor: it is not tied to a fund review and is
+invoked directly by `GET /api/market-pulse`.
+
+---
+
+## 5. Run the project
+
+### Requirements
+
+- Python 3.11 or newer; the project has been developed with Python 3.13.
+- `uv` for the backend environment and dependencies.
+- Node.js 18 or newer and npm for the frontend.
+
+### Start both applications
+
+From the repository root:
+
 ```bash
 ./dev.sh
 ```
-Starts the API on **:8077** and the web app on **:3000**. Open http://localhost:3000.
 
-### Manual
+The script starts FastAPI at `http://localhost:8077` and Next.js at
+`http://localhost:3000`. The backend API documentation is at `http://localhost:8077/docs`.
+
+### Start them separately
+
 ```bash
-# Backend  →  http://localhost:8077   (interactive API docs at /docs)
+# Backend
 cd backend
 uv venv .venv
 uv pip install -e ".[dev]"
 .venv/bin/uvicorn app.main:app --reload --port 8077
+```
 
-# Frontend →  http://localhost:3000
+```bash
+# Frontend
 cd frontend
 npm install
 npm run dev
 ```
 
-### Verify
+### Run checks
+
 ```bash
-cd backend && .venv/bin/python -m pytest -q     # quant contract tests
-cd frontend && npx tsc --noEmit                 # type safety
+cd backend && .venv/bin/python -m pytest -q
+cd frontend && npx tsc --noEmit
 ```
 
 ---
 
-## 4. Configuration
+## 6. Configuration and optional services
 
-Settings live in `backend/app/config.py` (env-overridable, `backend/.env`). App-specific
-settings use the `HPR_` prefix; standard provider keys are read from their conventional names.
+Backend settings are defined in `backend/app/config.py`. `HPR_` is the default settings
+prefix; provider keys and LLM provider/model also accept their conventional unprefixed names.
+The backend reads a local `backend/.env` when present. The frontend API URL is
+`NEXT_PUBLIC_API_BASE`.
 
-| Variable            | Default            | Purpose                                                        |
-| ------------------- | ------------------ | -------------------------------------------------------------- |
-| `LLM_PROVIDER`      | `anthropic`        | Reasoning backend: `anthropic` (Claude) or `groq`.             |
-| `LLM_MODEL`         | `claude-opus-4-8`  | Model id for the active provider.                              |
-| `ANTHROPIC_API_KEY` | *(unset)*          | Claude key. Enables LLM narrative + research when provider=anthropic. |
-| `GROQ_API_KEY`      | *(unset)*          | Groq key, used when provider=groq.                             |
-| `HPR_TAVILY_API_KEY`| *(unset)*          | Tavily web-search key. Needed (with an LLM key) for research.  |
-| `HPR_SEARCH_DEPTH`  | `basic`            | `basic` (1 credit) or `advanced` (2) — cost control.           |
-| `HPR_SEARCH_DAILY_CAP` | `60`            | Hard app-wide ceiling on Tavily calls/day.                     |
-| `HPR_RISK_FREE_RATE`| `0.065`            | Annualised risk-free rate for Sharpe/Sortino (≈ India G-Sec).  |
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_API_BASE` | `http://localhost:8077/api` | Frontend API base URL. |
+| `HPR_CORS_ORIGINS` | localhost:3000 origins | Allowed browser origins. |
+| `HPR_AMFI_NAV_URL` | AMFI `NAVAll.txt` portal URL | Scheme master source. |
+| `HPR_MFAPI_BASE` | `https://api.mfapi.in/mf` | NAV history source. |
+| `HPR_HTTP_TIMEOUT_SECONDS` | `20` | Upstream HTTP timeout. |
+| `HPR_CACHE_DIR` | `backend/.cache` | Local JSON cache directory. |
+| `HPR_AMFI_MASTER_TTL_HOURS` | `24` | AMFI master cache lifetime. |
+| `HPR_NAV_TTL_HOURS` | `12` | NAV history cache lifetime. |
+| `HPR_RISK_FREE_RATE` | `0.065` | Annual risk-free rate used for Sharpe/Sortino. |
+| `LLM_PROVIDER` / `HPR_LLM_PROVIDER` | `anthropic` | `anthropic` or `groq`. |
+| `LLM_MODEL` / `HPR_LLM_MODEL` | `claude-opus-4-8` | Model name passed to the provider. |
+| `ANTHROPIC_API_KEY` or `GROQ_API_KEY` | unset | Enables the selected LLM provider. |
+| `HPR_TAVILY_API_KEY` | unset | Enables web search. |
+| `HPR_SEARCH_DEPTH` | `basic` | Tavily depth / cost setting. |
+| `HPR_SEARCH_MAX_RESULTS` | `4` | Search results requested per query. |
+| `HPR_SEARCH_TTL_HOURS` | `72` | Search-result cache lifetime. |
+| `HPR_SEARCH_DAILY_CAP` | `60` | Per-process daily cap on Tavily calls. |
+| `HPR_CAS_WARN_DAYS` | `30` | Age beyond which an imported statement warns. |
+| `HPR_CAS_REJECT_DAYS` | `90` | Age beyond which an imported statement is rejected. |
+| `HPR_CAS_MAX_BYTES` | `15,000,000` | Maximum uploaded statement size. |
 
-Without an LLM key the app uses transparent deterministic text; without Tavily (or the LLM)
-web research cleanly no-ops. Frontend: `NEXT_PUBLIC_API_BASE` (default
-`http://localhost:8077/api`) points the web app at the backend.
-
----
-
-## 5. System architecture
-
-The system has three tiers: a **Next.js frontend**, a **FastAPI** edge, and a
-**supervisor-orchestrated agent layer** that coordinates focused specialists over free
-public data (and, on demand, the web). The LLM is used *only inside* the specialists that
-need it; orchestration and scoring are deterministic.
-
-```mermaid
-flowchart TB
-    subgraph FE["🖥️  Frontend — Next.js / React / TypeScript"]
-        SB["SearchBar"] --> API
-        PB["PortfolioBuilder"] --> API
-        RV["FundReview · PortfolioOverview\nResearchPanel · Citations"]
-    end
-
-    API{{"FastAPI  ·  app/api/routes.py\nREST + Server-Sent Events"}}
-
-    subgraph AGENT["🧠  Agent layer"]
-        SUP(("Supervisor\n(orchestrator)"))
-        QUANT["Quant specialist\nmetrics · peers"]
-        RESEARCH["Research specialist\nsearch · appraise · cite"]
-        VERDICT["Verdict specialist\nscore · synthesise"]
-        NARRATE["Narrator\nLLM or template"]
-        SUP --> QUANT --> SUP
-        SUP --> RESEARCH --> SUP
-        SUP --> VERDICT --> SUP
-        SUP --> NARRATE --> SUP
-    end
-
-    subgraph DATA["📦  Data & providers"]
-        AMFI[("AMFI\nNAVAll.txt")]
-        MFAPI[("mfapi.in\nNAV history")]
-        TAVILY[("Tavily\nweb search")]
-        LLM[("LLM\nClaude / Groq")]
-    end
-
-    API <-->|SSE / JSON| FE
-    API --> SUP
-    QUANT --> AMFI
-    QUANT --> MFAPI
-    RESEARCH --> TAVILY
-    RESEARCH --> LLM
-    NARRATE --> LLM
-    SUP -->|final state| API
-
-    classDef prov fill:#eef6f2,stroke:#0e7c5a,color:#15171c;
-    class AMFI,MFAPI,TAVILY,LLM prov;
-```
-
-**Reading it (plain version):** the page talks to one API. The API hands the request to a
-*supervisor* that calls the right specialists in turn — one crunches the numbers, one (only
-when asked) researches the web, one scores the verdict, one writes it up — then streams the
-result back so you watch it happen.
+The standard fund review, search, and portfolio analysis do not require an LLM or Tavily key.
+Research and Market Pulse require both a configured LLM and Tavily. Narrative and insight
+features can use a deterministic fallback when no LLM is configured.
 
 ---
 
-## 6. Request lifecycle
+## 7. Fund review, step by step
 
-### The supervisor's plan (how work is routed)
+### 7.1 Search is the input gate
 
-The supervisor owns an ordered **plan** per task and dispatches one specialist at a time; each
-returns to the supervisor until the plan is empty. Adding a feature = adding a plan, not
-rewiring.
+The browser calls `GET /api/search?q=...`. The API obtains the AMFI master and returns
+`SchemeHit` records. The search indexes the fund base name and AMC, uses RapidFuzz to tolerate
+reordered words, filters weak matches with a distinctive-token gate, and collapses plan /
+option variants to one representative scheme. It prefers Direct-Growth when available.
 
-```mermaid
-flowchart LR
-    START([request]) --> S{{Supervisor\npicks next step}}
-    S -->|gather_quant| Q[Quant] --> S
-    S -->|gather_peers| P[Peers] --> S
-    S -->|gather_research*| R[Research] --> S
-    S -->|build_evidence| E[Evidence] --> S
-    S -->|synthesise| V[Verdict] --> S
-    S -->|narrate| N[Narrator] --> S
-    S -->|plan empty| DONE([result])
-    R -.->|*deep / on-demand only| R
-```
-`fund_review` plan = quant → peers → evidence → verdict → narrate (free).
-`fund_review_deep` inserts **research** before evidence. `research_only` runs just research.
+The selected scheme's AMFI code is the identifier sent to the review endpoint. The backend
+resolves it back through the master; arbitrary user-entered scheme names are not accepted as
+review inputs.
 
-### Sequence — standard fund review (`GET /api/review/stream`, free)
+### 7.2 Standard review sequence
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant U as Browser
+    actor User
+    participant UI as Next.js UI
     participant API as FastAPI
-    participant S as Supervisor
-    participant Q as Quant
-    participant V as Verdict
-    participant N as Narrator
-    participant LLM as LLM (Claude/Groq)
+    participant AMFI as AMFI master
+    participant S as LangGraph supervisor
+    participant Q as Quant node
+    participant P as Peer node
+    participant E as Evidence node
+    participant V as Verdict node
+    participant N as Narrative node
+    participant NAV as mfapi.in
+    participant LLM as Optional LLM
 
-    U->>API: GET /review/stream?scheme_code
-    API->>S: run_task("fund_review")
-    S->>Q: metrics + peers (AMFI/mfapi)
-    Q-->>API: step events (SSE)
-    S->>V: health score + Continue/Stop/Shift
-    V-->>API: step event
-    S->>N: write honest narrative
-    N->>LLM: evidence ledger (grounded)
-    LLM-->>N: prose (or template fallback)
-    N-->>API: step event
-    API-->>U: event: result (full review)
-```
-
-### Sequence — on-demand deep research (`GET /api/research`, spends credits)
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant U as Browser
-    participant API as FastAPI
-    participant S as Supervisor
-    participant R as Research
-    participant T as Tavily
-    participant G as Appraisal gate
-    participant LLM as LLM
-
-    U->>API: GET /research?scheme_code  (explicit click)
-    API->>S: run_task("research_only")
-    S->>R: research fund
-    R->>T: 2 basic searches (budget-capped, cached)
-    T-->>R: sources + snippets
-    R->>G: appraise each source → reliability
-    G-->>R: trusted sources only (≥ floor)
-    R->>LLM: extract cited claims ([n] markers)
-    LLM-->>R: claims + citations
-    R-->>API: claims + numbered footnotes + budget
-    API-->>U: cited findings + Sources list
-```
-
-### Sequence — portfolio analysis (`POST /api/portfolio/stream`)
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant U as Browser
-    participant API as FastAPI
-    participant O as Portfolio orchestrator
-    participant S as Supervisor (per fund)
-
-    U->>API: POST /portfolio/stream (holdings)
-    API-->>U: event: start (total)
-    par bounded concurrency
-        O->>S: review fund A → personal returns
-        O->>S: review fund B → personal returns
-        O->>S: review fund C → personal returns
+    User->>UI: Select a search result
+    UI->>API: GET /api/review/stream?scheme_code=...
+    API->>AMFI: Resolve official scheme code
+    AMFI-->>API: Scheme metadata
+    API->>S: Start fund_review with scheme state
+    S->>Q: Gather NAV metrics
+    Q->>NAV: Get subject NAV history
+    NAV-->>Q: Daily NAV history
+    Q-->>S: Metrics + progress step
+    S-->>API: Stream newly-added step
+    S->>P: Compare category peers
+    P->>AMFI: Select Direct-Growth peers
+    P->>NAV: Fetch peer NAV series (bounded / cached)
+    NAV-->>P: Peer histories
+    P-->>S: Peer report + progress step
+    S-->>API: Stream newly-added step
+    S->>E: Build computed evidence
+    E-->>S: Evidence ledger
+    S->>V: Score evidence and peer ranks
+    V-->>S: Health, verdict, confidence
+    S-->>API: Stream verdict step
+    S->>N: Explain the already-computed verdict
+    opt LLM enabled
+        N->>LLM: Evidence and decided verdict
+        LLM-->>N: Grounded narrative
     end
-    S-->>API: each fund done → event: holding
-    O->>O: aggregate (health, mix, HHI, best/worst)
-    API-->>U: event: result (portfolio summary)
+    N-->>S: Narrative or deterministic template
+    S-->>API: Final state
+    API-->>UI: event: result — assembled ReviewResponse
+    UI-->>User: Verdict, metrics, peers, evidence, caveats
 ```
+
+### 7.3 What the user sees
+
+The streaming endpoint sends progress events as the agent state gains steps. The final
+`ReviewResponse` is assembled by `analysis/review_view.py`. The UI shows:
+
+1. **Verdict and health:** category, data date, verdict, confidence, and score gauge.
+2. **Personal position (portfolio drill-down only):** units, average buy NAV, current value,
+   total gain/loss, and total return.
+3. **Narrative:** LLM-written when enabled, otherwise a deterministic template.
+4. **Insights:** optional, explicitly requested, cached insight cards.
+5. **Metrics:** computed values with concise explanations and expandable detail.
+6. **Peers and rolling returns:** relative rank and a distribution of historical holding
+   period outcomes.
+7. **Evidence ledger:** claims, direction, weight, source reliability, and appraisal reasons.
+8. **Deep research:** optional, explicitly requested web research and cited sources.
+9. **Caveats:** what the review does not establish and the educational-use notice.
+
+`FundReview` is shared by standalone reviews and a holding drill-down. `assemble_review` is
+what keeps the response shape consistent.
+
+### 7.4 Standard review versus web research
+
+The normal review does not call Tavily. Clicking **Run deep research** calls
+`GET /api/research?scheme_code=...`, which executes `research_only`; those researched claims
+are shown in the research panel and do not retroactively change the already-rendered standard
+verdict. `fund_review_deep` is also available as an orchestration plan, but is not the normal
+browser review flow.
 
 ---
 
-## 7. Repository layout
+## 8. Portfolio review, step by step
 
-```
-backend/
-  app/
-    config.py              Settings (env-overridable; zero creds for core)
-    main.py                FastAPI app, CORS, startup warmup of scheme master
-    api/routes.py          All HTTP endpoints (REST + SSE)
-    data/
-      amfi.py              Scheme master: parse NAVAll.txt, index (code + ISIN), gated search
-      navapi.py            NAV history client (+ asyncio.Semaphore)
-      websearch.py         Tavily client (cached, daily-capped, no-op without key)
-      cas_import.py        CAS parsing → active holdings (in-memory, PII-safe)
-      cache.py             TTL file cache (JSON, best-effort)
-    analysis/
-      metrics.py           Pure quant functions + MetricsReport
-      peers.py             Peer set selection + percentile ranking
-      portfolio.py         Personal returns + portfolio aggregation (pure)
-      explainers.py        Metric meaning catalog (plain + analogy + bands)
-      review_view.py       assemble_review(): the shared review dict
-    agent/
-      supervisor.py        Orchestrator: plans + routes the specialists
-      graph.py             Public entry points (review_fund, research_fund, build_graph)
-      state.py             AgentState (TypedDict) + EvidenceItem/SourceRef models
-      nodes.py             Specialist node functions
-      verdict.py           Transparent scoring + verdict synthesis
-      research.py          Web-research specialist (search → appraise → cite)
-      appraisal.py         Source-reliability gate (web + computed)
-      citations.py         Citation registry + inline [n] marker parsing
-      insights.py          Insights specialist (fund + portfolio, cached)
-      market.py            Market Pulse specialist (cited, cached, credit-aware)
-      llm.py               LLM narrative (evidence-grounded)
-      llm_provider.py      Provider factory (Claude / Groq switch)
-      portfolio.py         Portfolio orchestrator (per-fund fan-out)
-    models/schemas.py      Pydantic request/response models
-  tests/                   test_metrics.py · test_citations.py
-frontend/
-  src/
-    app/layout.tsx, page.tsx, globals.css
-    components/            SearchBar, FundReview, VerdictCard, HealthGauge, MetricCard,
-                          PeerBars, RollingReturns, EvidenceLedger, ThinkingStream,
-                          PortfolioBuilder, PortfolioOverview, HoldingsTable,
-                          ResearchPanel, Citations, BackgroundMotif
-    lib/                  api.ts, types.ts, format.ts
-docs/
-  TECHNICAL.md            This document
-  index.html              Static GitHub Pages landing site
-dev.sh                    One-command local dev
+### 8.1 Portfolio input
+
+The builder accepts up to 40 holdings. Each holding needs:
+
+```json
+{
+  "scheme_code": "122639",
+  "units": 500,
+  "avg_nav": 55
+}
 ```
 
----
+Users can create these entries by searching AMFI schemes or import a CAS and review the
+prefilled entries before analysis.
 
-## 8. Data layer
+### 8.2 Analysis and streaming
 
-### 8.1 AMFI scheme master — `data/amfi.py`
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI as Portfolio builder
+    participant API as FastAPI
+    participant Orchestrator as Portfolio route
+    participant Review as Fund-review supervisor
+    participant NAV as mfapi.in
+    participant Agg as Portfolio aggregator
 
-**Source:** `https://portal.amfiindia.com/spages/NAVAll.txt`
-> ⚠️ Use the `portal.` host. The legacy `www.amfiindia.com` URL issues a 302 redirect, so the
-> HTTP client is configured with `follow_redirects=True`.
-
-**Format:** semicolon-delimited, **8 columns**:
+    User->>UI: Enter / confirm holdings
+    UI->>API: POST /api/portfolio/stream
+    API-->>UI: event: start { total }
+    API->>Orchestrator: Start one analysis per holding
+    par Per-holding reviews
+        Orchestrator->>Review: Review fund A + units / cost
+        Review->>NAV: Fund and peer NAV histories
+        NAV-->>Review: NAV series
+        Review-->>Orchestrator: Review A + latest NAV
+    and
+        Orchestrator->>Review: Review fund B + units / cost
+        Review->>NAV: Fund and peer NAV histories
+        NAV-->>Review: NAV series
+        Review-->>Orchestrator: Review B + latest NAV
+    end
+    Orchestrator-->>UI: event: holding for each completed / failed fund
+    Orchestrator->>Agg: Valid holdings and current values
+    Agg-->>Orchestrator: Summary, weights, mix, concentration, actions
+    Orchestrator-->>UI: event: result { summary, holdings, errors }
+    UI-->>User: Portfolio overview and fund drill-downs
 ```
-Scheme Code ; ISIN Growth ; ISIN Reinvest ; Scheme Name ; Plan ; Option ; NAV ; Date
-122639;INF879O01027;-;Parag Parikh Flexi Cap Fund;Direct Plan;Growth;90.8844;16-Oct-2026
-```
-Section banners (scheme type, with parentheses) and AMC names appear as **delimiter-less
-header lines** between data rows. The parser tracks the current type/AMC as it scans. It also
-tolerates the older 6-column feed (plan/option folded into the name).
 
-**`Scheme` record fields:** `code`, `name` (full), `base_name`, `amc`, `scheme_type`,
-`category` (distilled peer-group label, e.g. `Flexi Cap Fund`), `plan`, `option`, ISINs, plus
-`is_direct` / `is_growth` convenience properties.
+The API also exposes synchronous `POST /api/portfolio`. The browser currently uses the
+streaming endpoint. Per-fund analyses run concurrently; NAV upstream calls are independently
+bounded by a semaphore and cached.
 
-**Indexing & search:** ~14,000 schemes are parsed once, cached 24h, and indexed in memory. The
-search corpus is `"<base_name> | <amc>"` lowercased. `RapidFuzz` `token_set_ratio` handles
-out-of-order queries ("flexi parag" → "Parag Parikh Flexi Cap"). Results collapse the four
-plan/option variants of each fund into one row, **preferring the Direct-Growth plan** (what a
-cost-conscious long-term investor should compare).
+### 8.3 Portfolio calculations
 
-> **Why this matters:** this layer is the guarantee behind *"no random funds."* The UI can only
-> ever select a real AMFI scheme code, so every downstream metric has clean, valid input.
+For a holding with `units`, average buy NAV `avg_nav`, and latest NAV:
 
-### 8.2 NAV history — `data/navapi.py`
-
-**Source:** `https://api.mfapi.in/mf/<scheme_code>` → full daily NAV history + metadata.
-
-Parsed into an ascending `NavSeries` of `(date, nav)` points; invalid/zero NAVs dropped;
-cached 12h. A module-level `asyncio.Semaphore(16)` bounds concurrent upstream fetches so
-portfolio fan-out (many funds × their peers) doesn't storm the source. Retries use
-`tenacity` (3 attempts, exponential backoff).
-
-### 8.3 Cache — `data/cache.py`
-
-A tiny, dependency-free JSON file cache keyed by name with a per-entry timestamp and TTL.
-Best-effort: a cache failure never fails the request.
-
----
-
-## 9. Analysis layer
-
-### 9.1 Metrics — `analysis/metrics.py`
-
-Pure, unit-testable functions over the NAV series. **Every number a verdict depends on is
-computed here.** Output is a `MetricsReport` with these metrics (and 3y/5y rolling-return
-distributions):
-
-| Key                   | Label                        | Unit  | Good |
-| --------------------- | ---------------------------- | ----- | ---- |
-| `ret_1y`              | 1-Year Return                | %     | higher |
-| `ret_3y`              | 3-Year Return (annualised)   | %     | higher |
-| `ret_5y`              | 5-Year Return (annualised)   | %     | higher |
-| `ret_since_inception` | Since-Inception CAGR         | %     | higher |
-| `volatility`          | Volatility (annualised)      | %     | lower |
-| `sharpe`              | Sharpe Ratio                 | ratio | higher |
-| `sortino`             | Sortino Ratio                | ratio | higher |
-| `max_drawdown`        | Maximum Drawdown             | %     | higher (less negative) |
-
-Formulas are in [§11](#11-scoring-methodology-exact-math).
-
-### 9.2 Peer analysis — `analysis/peers.py`
-
-A fund is meaningless in isolation — 12% is great in a down year and poor in a bull run. So we
-rank it **relative** to its peers:
-- **Peer set:** same distilled category, **Direct-Growth plans only** (like-for-like on cost),
-  spread across AMCs (≤2 per house), capped at 18 for a stable percentile.
-- Each peer's metrics computed concurrently; peers that fail to load drop out.
-- **Percentile** per ranked metric = the fraction of the (peers + self) pool the fund is at
-  least as good as, direction-aware (lower volatility / shallower drawdown rank *better*).
-
-### 9.3 Explainers — `analysis/explainers.py` (the USP in code)
-
-Every metric has an `Explainer` with: a **`plain`** line (child-level, with an everyday
-analogy — always shown first in the UI), `meaning`, `why_it_matters`, `how_to_read`, and
-**interpretation bands** that turn a raw value into a plain label + tone (e.g. *"Bumpy"*,
-*"Not worth the bumps"*, *"Brutal fall"*). Bands are heuristics for *reading* a number, not
-buy/sell signals — the verdict is made by the scoring engine weighing everything.
-
-### 9.4 Shared assembler — `analysis/review_view.py`
-
-`assemble_review()` builds the canonical fund-review dict (metrics merged with their
-explainers, plus peers, evidence, verdict, narrative). Used by both the single-fund endpoint
-and each portfolio holding, so a holding's embedded review is byte-for-byte identical to a
-standalone one — the frontend reuses one component for both.
-
----
-
-## 10. Agent layer (LangGraph)
-
-### 10.1 State & evidence model — `agent/state.py`
-
-`AgentState` is a `TypedDict` carrying inputs (scheme, units, invested), gathered artifacts
-(`metrics`, `peers`, `evidence`), outputs (`health_score`, `verdict`, `confidence`,
-`headline`, `narrative`, `caveats`), and a `steps` trail for streaming.
-
-The **evidence ledger** is the spine of the honesty guarantee. Each `EvidenceItem` has a
-`claim`, `category`, `direction` (positive/negative/neutral), `weight`, `confidence`, and a
-list of `SourceRef`. A `SourceRef` carries `kind`, `title`, `url`, a **`reliability` score
-(0–1)**, and `reliability_reasons`. Computed evidence is primary (reliability 1.0).
-
-### 10.2 Supervisor / orchestrator — `agent/supervisor.py`, `agent/graph.py`
-
-The agent layer uses the **supervisor pattern** (see the diagrams in §6). A central
-supervisor node owns an ordered **plan** for the requested task and routes to one specialist
-at a time; each specialist returns to the supervisor until the plan is empty. Routing is
-deterministic (plan-driven), so orchestration costs no tokens and is fully reproducible.
-
-Plans (`supervisor.PLANS`):
-- `fund_review` → quant → peers → evidence → verdict → narrate (free, no web)
-- `fund_review_deep` → inserts **research** before evidence
-- `research_only` → research specialist alone (the on-demand, credit-spending path)
-- `fund_insights` → quant → peers → evidence → verdict → **generate_insights** (no narrate)
-
-`graph.py` exposes the stable entry points the API uses: `review_fund(...)`,
-`research_fund(...)`, and `build_graph` (the compiled supervisor, used by SSE streaming). New
-specialists (insights, market-pulse) slot in by adding a node + a plan — no rewiring.
-
-### 10.3 Specialists — `agent/nodes.py`
-
-Each plan step is a node reusing the existing logic: `gather_quant`, `gather_peers`,
-`gather_research`, `build_evidence`, `synthesise`, `narrate`. Deterministic specialists need
-no credentials; `gather_research` and `narrate` use the LLM (with graceful fallback).
-
-### 10.4 Research specialist — `agent/research.py` + `data/websearch.py`
-
-Runs only in `fund_review_deep` / `research_only`. Two credit-conservative Tavily searches
-(facts + recent news) → every source through the appraisal gate → the LLM extracts concise,
-**cited** claims (inline `[n]` markers). Cost controls: on-demand only, `basic` depth, 72h
-cache, and an app-wide daily call cap. See §16.
-
-### 10.5 Source-appraisal gate — `agent/appraisal.py`
-
-Every externally-sourced claim passes this gate before it earns weight. Computed evidence
-bypasses it (primary, 1.0). Web sources earn a 0–1 reliability from transparent, recorded
-criteria: **authoritative domain** (tiered — SEBI/AMFI/RBI highest, then research houses and
-fund-data platforms, then press), **recency**, and **corroboration** by independent sources.
-Claims below the trust floor (0.45) are logged but given zero weight.
-
-### 10.6 Citation service — `agent/citations.py`
-
-A `CitationRegistry` numbers each unique source (deduped by URL, first-use order) and emits
-the footnote list the UI renders. Agents write inline `[n]` markers; the frontend turns them
-into links to the numbered **Sources** section, each with domain, date, reliability and link.
-
-### 10.7 LLM layer — `agent/llm.py`, `agent/llm_provider.py`
-
-`llm_provider.get_chat_model()` is the single place that knows the backend (Claude via
-Anthropic, or an open model via Groq) — the whole project switches with one `LLM_PROVIDER`
-env var. `llm.py` writes the narrative given **only** the computed evidence + the
-already-decided verdict; the system prompt forbids inventing numbers or overriding the
-verdict and mandates child-level clarity. It explains the arithmetic; it never changes it.
-
-### 10.8 Insights specialist — `agent/insights.py`
-
-The "so what?" layer: synthesises the gathered evidence into 4–6 **structured insight cards**
-(title, plain detail, category, tone) — big picture, genuine strengths, the biggest honest
-watch-out, and what to monitor. Grounded strictly in the provided data; the LLM interprets,
-never invents. Works for a single fund (`fund_insights` plan) and for a whole portfolio
-(`generate_portfolio_insights` over the summary). **On-demand** (a button, not automatic) and
-**cached 12h per subject**, so it never silently spends tokens and is instant on repeat views.
-Degrades to deterministic insights from the evidence ledger without an LLM key.
-
-### 10.9 Market Pulse specialist — `agent/market.py`
-
-An honest, cited read on the broader market: **mood**, **triggers**, **bright spots**,
-**risks**, and an **attributed outlook**. Two (optionally three) recent-news Tavily searches →
-appraisal gate → LLM synthesis into a structured, cited pulse. Honesty guardrail: projections
-are always **attributed to a named source and framed as that source's view** — never the
-app's forecast, never advice. On-demand and **cached 6h** to spare credits; reports
-"unavailable" (not a fake) when keys are absent. Invoked directly by `GET /api/market-pulse`
-(it's market-scoped, not fund-scoped, so it doesn't run through the fund supervisor).
-
----
-
-## 11. Scoring methodology (exact math)
-
-All computation uses daily simple returns `rₜ = NAVₜ / NAVₜ₋₁ − 1`, annualised by the
-market-standard 252 trading days.
-
-**Metrics**
-- **CAGR:** `(NAV_end / NAV_start)^(1/years) − 1`.
-- **Trailing N-year (N ≥ 1):** CAGR using the NAV on/just-before `end − N years`. (< 1y:
-  absolute return.)
-- **Annualised volatility:** `stdev(r, ddof=1) × √252`.
-- **Sharpe:** `(mean(r)×252 − r_f) / (stdev(r)×√252)`.
-- **Sortino:** `(mean(r)×252 − r_f) / (stdev(r<0)×√252)` (downside deviation).
-- **Max drawdown:** `min( NAVₜ / cummax(NAV)ₜ − 1 )` — a negative number.
-- **Rolling N-year:** monthly-stepped windows; for each, CAGR over N years; report
-  `min / median / max / % negative`. (Shows the *distribution* of outcomes an investor could
-  actually have experienced — far more honest than one endpoint.)
-
-**Peer percentile** (per metric): `|{x ∈ peers∪{self} : self is ≥ as good as x}| / |peers∪{self}|`,
-direction-aware.
-
-**Health score (0–100)** — a weighted average of component sub-scores over the components
-present (weights renormalised if any are missing):
-
-| Component          | Weight | Sub-score (clamped 0–100)                               |
-| ------------------ | ------ | ------------------------------------------------------- |
-| Peer standing      | 0.30   | mean percentile of `ret_3y`, `ret_5y`, `sharpe` × 100   |
-| Risk-adjusted      | 0.26   | mean(Sharpe, Sortino) / 1.5 × 100                       |
-| Long-term return   | 0.22   | (5y or 3y CAGR) / 0.20 × 100                            |
-| Consistency        | 0.14   | (1 − %negative_windows × 4) × 100                       |
-| Drawdown           | 0.08   | (1 − (|maxDD| − 0.20) / 0.40) × 100                     |
-
-**Verdict mapping**
-- `health ≥ 62` **and** peer percentile ≥ 0.45 (or unknown) → **Continue**
-- `health < 42` → **Stop**
-- else if peer percentile < 0.45 → **Shift**
-- else → **Continue** if `health ≥ 55` else **Shift**
-
-**Confidence** = `clamp(0.5 × completeness + 0.5 × agreement, 0.25, 0.95)`, where completeness
-is the fraction of component weight present and agreement is how strongly the present
-components point the same way.
-
-> Why rule-based at the core? **Auditability.** A user (or a regulator, or you) can trace
-> exactly why a fund scored what it did. No black box decides the verdict.
-
----
-
-## 12. Portfolio methodology
-
-`analysis/portfolio.py` (pure math) + `agent/portfolio.py` (orchestration).
-
-**Input per holding:** `units` + `avg_nav` (average buy NAV).
-
-**Personal numbers:**
-```
+```text
 invested      = units × avg_nav
 current_value = units × latest_nav
 gain          = current_value − invested
-return_pct    = gain / invested        # absolute, total-so-far — NOT annualised
+return_pct    = gain ÷ invested
 ```
-> Return is **not** annualised because purchase dates aren't collected — stated plainly as a
-> caveat so no one misreads it.
 
-**Aggregation:**
-- Weights by current value; **category mix** (value share per category).
-- **HHI (Herfindahl concentration index):** `Σ wᵢ²` — ranges from `1/n` (evenly spread) to `1`
-  (all in one). Plus top-holding and top-category shares.
-- **Portfolio health** = value-weighted average of per-fund health − a transparent
-  **concentration penalty** (0–12 pts based on fund count, HHI, and top-category share).
-- **Verdict:** `health ≥ 65` and penalty ≤ 5 → **Healthy**; `health ≥ 50` → **Minor tweaks**;
-  else → **Needs rebalancing**.
-- **Best/worst** by personal return; **action items** surface Shift/Stop funds with their
-  weight ("reconsider X — it's 16% of your money").
+These values are absolute, total-to-date returns, **not annualised**. They do not model
+purchase dates or cash flows.
 
-**Overlap** is **category-level** today (concentration by fund category). True stock-level
-overlap (shared underlying holdings) is a later version.
+Portfolio aggregation derives:
+
+- each fund's weight from its current value;
+- category weights and a category-mix visualization;
+- the largest holding and largest category shares;
+- a Herfindahl-Hirschman Index (HHI), calculated as the sum of squared holding weights;
+- a value-weighted fund health score, reduced by a concentration penalty;
+- best and worst personal performers; and
+- action-item observations for holdings with Stop / Shift verdicts.
+
+The result contains only successfully analysed holdings and an `errors` count for omitted
+ones. If none can be analysed, the route returns HTTP 422.
+
+---
+
+## 9. CAS import and privacy
+
+### Import flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as Portfolio builder
+    participant API as FastAPI
+    participant Parser as casparser
+    participant AMFI as AMFI master
+
+    User->>UI: Select CAS PDF; enter password if needed
+    UI->>API: multipart POST /api/portfolio/import
+    API->>API: Read upload and enforce byte-size limit
+    API->>Parser: Parse PDF bytes in memory
+    alt Password required or invalid file
+        Parser-->>API: Parse status
+        API-->>UI: password_required or error + clear message
+    else CAS parsed
+        Parser-->>API: Statement period, folios, schemes
+        API->>API: Reject stale statement beyond configured age
+        loop Active schemes only
+            API->>AMFI: Resolve AMFI code, then ISIN fallback
+            AMFI-->>API: Matched scheme or no match
+        end
+        API-->>UI: Matched holdings, unmatched names, date and freshness status
+        UI->>UI: Prefill builder; user reviews and edits before analysis
+    end
+```
+
+### Privacy properties in the implementation
+
+- The upload is parsed in the API request; CAS parsing does not intentionally write the
+  statement to disk or send it to the LLM or web search.
+- Only matched scheme data and the holdings needed by the builder are returned. PAN, folio,
+  investor name, and email are not part of the returned holding shape.
+- The frontend clears its password state after the import attempt.
+- Active holdings require closing units greater than zero. Matching uses AMFI code, then ISIN.
+- Statements older than `cas_reject_days` are rejected; statements older than
+  `cas_warn_days` produce a warning.
+- The configured upload size is checked after `UploadFile.read()` has read the request bytes.
+  The current route does not implement a streaming size guard.
+
+As with any in-memory processing, this is not a claim of secure memory erasure: the route
+releases references after processing, but Python/runtime memory reclamation is not a
+cryptographic wipe guarantee.
+
+---
+
+## 10. Research, insights, and Market Pulse
+
+### 10.1 On-demand fund research
+
+`GET /api/research?scheme_code=...` validates the scheme, checks that both the LLM and Tavily
+are configured, then runs the research specialist. The specialist:
+
+1. runs a small number of fact/news searches through Tavily;
+2. deduplicates citations and appraises source reliability;
+3. ignores sources below the configured trust floor for claim extraction;
+4. asks the configured LLM to extract concise claims tied to numbered sources; and
+5. returns claims, footnotes, and current daily-search-budget information.
+
+Research is a separate panel and explicit user action. Search results are cached, and actual
+network calls count against an app-wide-in-process daily cap. A cache hit does not spend a
+new search call.
+
+### 10.2 Insights
+
+- `GET /api/insights?scheme_code=...` runs a deterministic fund review without the narrative
+  step, then produces 4–6 structured cards. Results are cached for 12 hours by fund code.
+- `POST /api/insights/portfolio` accepts a computed summary plus a brief holding list and
+  returns portfolio-level cards. The cache key is a hash of the submitted summary and
+  holdings; entries are cached for 12 hours.
+- If an LLM is not configured, the feature uses deterministic fallback cards. A transient
+  model error also falls back for that request.
+
+### 10.3 Market Pulse
+
+`GET /api/market-pulse?focus=...` bypasses the fund supervisor. It performs two general
+Indian-market news searches and optionally a third focused search, filters sources through the
+same appraisal gate, and asks the LLM to return structured mood, triggers, highlights,
+watch-outs, and attributed outlook. It is cached for six hours when a pulse is produced.
+
+Projections are represented as the named source's view, not Truthfolio's prediction. Without
+both services or without usable reliable sources, the API returns an explicit unavailable
+state rather than fabricating a pulse.
+
+### 10.4 Source appraisal and citations
+
+`agent/appraisal.py` scores web sources from transparent criteria such as domain authority,
+recency, and corroboration. The result includes reliability reasons for display. Computed
+evidence is treated as primary evidence with reliability 1.0.
+
+`agent/citations.py` deduplicates sources by URL and assigns first-use numbers. The frontend's
+`CitedText`, `Markdown`, and `SourcesList` components render inline markers and source links.
+
+---
+
+## 11. Data sources and caching
+
+### AMFI scheme master
+
+`backend/app/data/amfi.py` downloads the official AMFI `NAVAll.txt` portal feed. It parses
+semicolon-separated records and delimiter-less scheme/AMC headers; supports the current
+8-column form and older 6-column data; derives a distilled category; and indexes schemes by
+AMFI code and ISIN. The master is cached for 24 hours by default and warmed during FastAPI
+startup. If startup warming fails, the lifespan handler allows the app to continue and a
+later request can retry.
+
+### NAV history
+
+`backend/app/data/navapi.py` reads a scheme's historical NAV series from
+`https://api.mfapi.in/mf/{scheme_code}`. It normalizes dates and values into ascending
+`NavPoint` records, drops invalid/non-positive values, caches raw data for 12 hours, and
+limits simultaneous upstream fetches with a module-level semaphore of 16. Upstream
+exceptions are retried up to three times with exponential backoff.
+
+### Web search
+
+`backend/app/data/websearch.py` calls Tavily's REST endpoint directly. It caches by query
+parameters for the configured TTL, limits real outbound searches per process/day, and returns
+no results when the key is absent or the budget is exhausted. Network and response parsing
+errors return an empty result list.
+
+### Local cache
+
+`backend/app/data/cache.py` implements a small JSON file cache with per-entry timestamps and
+TTL. It is a local cache, not a distributed cache or durable application database. Cache
+storage is best effort.
+
+---
+
+## 12. Analysis and scoring
+
+### 12.1 Metrics
+
+`backend/app/analysis/metrics.py` is the pure-analysis center. It builds a date-indexed series,
+removes duplicate dates, sorts chronologically, then computes:
+
+| Metric | Interpretation | Implementation convention |
+| --- | --- | --- |
+| 1-year return | Recent trailing annualized return | CAGR over one year when available. |
+| 3-year return | Medium-term annualized return | CAGR over three years when available. |
+| 5-year return | Longer-term annualized return | CAGR over five years when available. |
+| Since-inception CAGR | Annualized growth over available history | From first to last NAV and elapsed calendar years. |
+| Volatility | Size of NAV-return movement | Sample standard deviation (`ddof=1`) of daily returns × √252. |
+| Sharpe ratio | Excess return relative to total volatility | Annualized arithmetic mean less configured risk-free rate, divided by annualized volatility. |
+| Sortino ratio | Excess return relative to downside variation | Annualized arithmetic mean less risk-free rate, divided by annualized standard deviation of negative daily returns. |
+| Maximum drawdown | Largest peak-to-trough decline | Minimum of NAV / running NAV peak − 1; a negative value. |
+| Rolling 3y/5y returns | Range of historical holding-period CAGRs | Monthly-stepped start points; min, median, max, observation count, and share of negative windows. |
+
+When there is not enough history for a metric or rolling window, its value may be null or the
+window may be omitted.
+
+### 12.2 Peer set and ranks
+
+`backend/app/analysis/peers.py` selects other schemes in the same distilled AMFI category,
+excluding the subject and keeping Direct-Growth plans. It sorts by AMC/name, takes at most two
+schemes per AMC, and caps the selected sample at 18. Peer NAV and metric work runs
+concurrently. A peer that fails to load is dropped.
+
+For each ranked metric, the percentile is the share of the pool (successful peers plus the
+subject) that the subject is at least as good as. “Good” is direction-aware: higher returns
+and ratios rank higher; lower volatility ranks higher; a less-negative drawdown ranks higher.
+The implementation reports a percentile only when there is at least one usable peer value.
+
+### 12.3 Health score
+
+`backend/app/agent/verdict.py` calculates each present component and renormalizes by the sum
+of the weights that were available:
+
+| Component | Weight | Sub-score |
+| --- | ---: | --- |
+| Peer standing | 0.30 | Mean percentile of 3-year return, 5-year return, and Sharpe × 100; missing ranks are excluded. |
+| Risk-adjusted | 0.26 | Mean of available Sharpe and Sortino ÷ 1.5 × 100. |
+| Long-term return | 0.22 | 5-year CAGR, or fallback 3-year CAGR, ÷ 0.20 × 100. |
+| Consistency | 0.14 | (1 − negative rolling-window share × 4) × 100; uses 5-year rolling data if available, otherwise the first available window. |
+| Drawdown | 0.08 | (1 − (absolute drawdown − 0.20) ÷ 0.40) × 100. |
+
+Each component is clamped to 0–100. Missing components are omitted and the remaining
+weights are renormalized. A score of zero is used only if there are no scoreable components.
+
+### 12.4 Fund verdict
+
+The rule order matters:
+
+1. If health is at least 62 and the peer-standing percentile is at least 0.45 (or unavailable),
+   verdict = **Continue**.
+2. Otherwise, if health is below 42, verdict = **Stop**.
+3. Otherwise, if peer-standing percentile is available and below 0.45, verdict = **Shift**.
+4. Otherwise, verdict = **Continue** for health at least 55, else **Shift**.
+
+Confidence is clamped to 0.25–0.95 and is calculated from available component weight
+(completeness) and agreement between component scores. It is a model confidence indicator,
+not a statistical guarantee.
+
+### 12.5 Portfolio score and verdict
+
+The portfolio aggregator computes a value-weighted average of successful fund health scores,
+then subtracts a concentration penalty. The penalty is bounded at 12 and reflects fund count,
+HHI, and top-category share. The verdict is:
+
+- health at least 65 **and** penalty no more than 5 → **Healthy**;
+- otherwise health at least 50 → **Minor tweaks**;
+- otherwise → **Needs rebalancing**.
+
+These thresholds describe the current implementation; they are heuristics, not regulated
+classifications.
 
 ---
 
 ## 13. API reference
 
-Base path `/api`. Interactive docs at `/docs` (Swagger) and `/redoc`.
+The API prefix is `/api`. FastAPI's generated docs are available at `/docs` and `/redoc`.
 
-| Method | Path                    | Purpose                                            |
-| ------ | ----------------------- | -------------------------------------------------- |
-| GET    | `/health`               | Liveness.                                          |
-| GET    | `/search?q=&limit=`     | Validated typeahead over the AMFI master.          |
-| POST   | `/review`               | Single-fund review (synchronous).                  |
-| GET    | `/review/stream`        | Single-fund review as SSE (`step`* → `result`).    |
-| POST   | `/portfolio`            | Whole-portfolio analysis (synchronous).            |
-| POST   | `/portfolio/stream`     | Portfolio as SSE (`start` → `holding`* → `result`).|
-| POST   | `/portfolio/import`     | Parse an uploaded CAMS/KFintech CAS → matched active holdings (multipart: file + optional password). |
-| GET    | `/research?scheme_code=`| On-demand web research for one fund (spends credits; cited claims + footnotes + budget). |
-| GET    | `/insights?scheme_code=`| Structured insight cards for one fund (LLM, cached; deterministic fallback). |
-| POST   | `/insights/portfolio`   | Portfolio-level insight cards from a computed summary + brief holdings. |
-| GET    | `/market-pulse`         | Cited market pulse — mood, triggers, risks, attributed outlook (cached). |
+| Method | Route | Input | Output / behavior |
+| --- | --- | --- | --- |
+| `GET` | `/health` | none | Liveness response. |
+| `GET` | `/search` | `q` (min 2 chars), optional `limit` (1–30) | AMFI-backed scheme results. |
+| `POST` | `/review` | JSON `ReviewRequest` | Synchronous `ReviewResponse`. |
+| `GET` | `/review/stream` | `scheme_code` query | SSE `step` events followed by `result`, or `error`. |
+| `POST` | `/portfolio` | `PortfolioRequest` (1–40 holdings) | Synchronous summary, valid holdings, and omitted count. |
+| `POST` | `/portfolio/stream` | `PortfolioRequest` | SSE `start`, `holding` events, then `result`; an `error` if every holding fails. |
+| `POST` | `/portfolio/import` | multipart `file`, optional `password` | CAS status, matched holdings, freshness, unmatched names. |
+| `GET` | `/research` | `scheme_code` query | On-demand cited fund research and search budget. |
+| `GET` | `/insights` | `scheme_code` query | Fund insight cards and whether an LLM was used. |
+| `POST` | `/insights/portfolio` | JSON summary and brief holdings | Portfolio insight cards. |
+| `GET` | `/market-pulse` | optional `focus` query | Optional cited Market Pulse and budget. |
 
-### `GET /search`
-```jsonc
-// GET /api/search?q=parag%20parikh&limit=5
-{
-  "query": "parag parikh",
-  "results": [
-    { "code": "122639",
-      "name": "Parag Parikh Flexi Cap Fund - Direct Plan - Growth",
-      "amc": "PPFAS Mutual Fund",
-      "category": "Flexi Cap Fund",
-      "scheme_type": "Open Ended Schemes(Equity Scheme - Flexi Cap Fund)" }
-  ]
-}
+### Request model notes
+
+- `ReviewRequest`: required `scheme_code`; optional non-negative `units` and `invested_amount`.
+- `PortfolioRequest`: 1–40 holdings; each requires an official scheme code, `units > 0`, and
+  `avg_nav > 0`.
+- Search returns `query` plus scheme rows with `code`, `name`, `amc`, `category`, and
+  `scheme_type`.
+
+### Review response shape
+
+The shared review response includes:
+
+```text
+scheme_code, scheme_name, category, as_of,
+verdict, health_score, confidence, headline, narrative, caveats,
+metrics[], rolling[], peers, evidence[], footnotes[], steps[],
+llm_used, research_used
 ```
 
-### `POST /review`
-```jsonc
-// body: { "scheme_code": "122639" }
-{
-  "scheme_code": "122639",
-  "scheme_name": "Parag Parikh Flexi Cap Fund - Direct Plan - Growth",
-  "category": "Flexi Cap Fund",
-  "as_of": "2026-10-16",
-  "verdict": "Continue",
-  "health_score": 69.1,
-  "confidence": 0.9,
-  "headline": "Keep holding ... — it stands up to scrutiny.",
-  "narrative": "…",
-  "metrics": [
-    { "key": "sharpe", "label": "Sharpe Ratio", "value": 0.93, "unit": "ratio",
-      "good_direction": "higher",
-      "plain": "Was the bumpy ride worth it? …",
-      "meaning": "…", "why_it_matters": "…", "how_to_read": "…",
-      "interpretation": { "label": "Okay", "tone": "neutral" } }
-  ],
-  "rolling": [ { "window_years": 5, "observations": 102, "min_cagr": 0.054,
-                 "median_cagr": 0.191, "max_cagr": 0.316, "pct_negative": 0.0 } ],
-  "peers": { "category": "Flexi Cap Fund", "peers_analysed": 18,
-             "ranks": [ { "key": "sharpe", "value": 0.93, "peer_median": 0.57,
-                          "percentile": 0.947, "peers_counted": 18 } ] },
-  "evidence": [
-    { "claim": "Ranks in the 64th percentile of its peers …",
-      "category": "peer", "direction": "positive", "weight": 0.30, "confidence": 0.9,
-      "sources": [ { "kind": "computed", "title": "Peer percentile …",
-                     "reliability": 1.0, "reliability_reasons": ["Primary: computed …"] } ] }
-  ],
-  "caveats": [ "This is educational analysis, not personalised investment advice.", "…" ],
-  "steps": [ "Computed 8 metrics …", "Compared against 18 peers …", "…" ],
-  "llm_used": false
-}
-```
+`metrics[]` entries combine the computed key/label/value/unit/direction with optional
+explanation text and interpretation. `evidence[]` entries have claims, category, direction,
+weight, confidence, and source references. Portfolio holdings embed this same review shape,
+plus personal position values and a portfolio weight.
 
-### SSE formats
-```
-# GET /review/stream
+### SSE event envelopes
+
+Events are text frames with an `event:` name and JSON `data:` payload.
+
+```text
+GET /review/stream
 event: step
-data: {"message": "Computed 8 metrics from 3294 NAV points (13.4y history)."}
-...
-event: result
-data: { <ReviewResponse> }
+data: {"message":"Computed metrics ..."}
 
-# POST /portfolio/stream
+event: result
+data: {"scheme_code":"...","verdict":"...", "...":"..."}
+```
+
+```text
+POST /portfolio/stream
 event: start
-data: {"total": 3}
+data: {"total":3}
+
 event: holding
-data: {"done": 1, "total": 3, "scheme_name": "...", "verdict": "Continue"}
-...
+data: {"done":1,"total":3,"scheme_name":"...","verdict":"Continue"}
+
 event: result
-data: {"summary": { <PortfolioSummary> }, "holdings": [ {review, personal, weight} ], "errors": 0}
+data: {"summary":{...},"holdings":[...],"errors":0}
 ```
 
-### `POST /portfolio`
-```jsonc
-// body: { "holdings": [ {"scheme_code":"122639","units":500,"avg_nav":55}, ... ] }
-{
-  "summary": {
-    "total_invested": 53500, "total_current": 133163, "total_gain": 79663,
-    "overall_return_pct": 1.489, "health_score": 62.8, "verdict": "Minor tweaks",
-    "confidence": 0.8,
-    "category_mix": [ {"category":"Mid Cap Fund","value":66500,"pct":0.50}, ... ],
-    "hhi": 0.39, "top_holding_pct": 0.50, "top_category": "Mid Cap Fund",
-    "top_category_pct": 0.50, "diversification": "Somewhat concentrated — …",
-    "best_performer": {...}, "worst_performer": {...},
-    "action_items": [ "Think about shifting … (16% of your money) …" ],
-    "headline": "A solid portfolio, up 148.9% overall, with a few things worth tidying.",
-    "caveats": [ "…" ]
-  },
-  "holdings": [ { "review": { <ReviewResponse> },
-                  "personal": { "units":500,"avg_nav":55,"current_nav":...,
-                                "invested":27500,"current_value":...,"gain":...,"return_pct":... },
-                  "weight": 0.34 } ],
-  "errors": 0
-}
+An unsuccessful holding is still reported as a `holding` event with `failed: true`. If every
+holding fails, the stream emits an `error` and does not emit `result`.
+
+---
+
+## 14. Frontend architecture and interaction model
+
+### App shell
+
+`frontend/src/app/page.tsx` is the client-rendered application entry. It owns the active tab
+and composes three feature areas:
+
+- **Review a fund** — typeahead selection → stream → reusable `FundReview`.
+- **My portfolio** — builder/import → stream → overview and holdings → reusable fund drill-down.
+- **Market Pulse** — explicit fetch → cited market snapshot or an explicit unavailable state.
+
+Each fund/portfolio flow uses a local phase (`idle`, `running`, `done`, `error`) and an
+`AbortController` for a newly selected fund or a reset. The tab panels stay mounted and
+inactive panels are hidden, so switching tabs preserves draft holdings, completed results,
+and optional-panel state.
+
+### Transport
+
+`frontend/src/lib/api.ts` owns JSON fetches and manual SSE decoding. Fund streams handle
+`step`, `result`, and `error`; portfolio streams handle `start`, `holding`, `result`, and
+`error`. The UI uses progress events rather than waiting behind a generic spinner.
+
+### Review components
+
+The review is composed from focused components. Metric explanations lead with plain-language
+copy; additional detail is expandable. Evidence rows expand to reveal source type, URL,
+reliability, and reasons. Citations link to a numbered source list.
+
+### Visual system
+
+`frontend/src/app/globals.css` defines color and shadow custom properties; Tailwind classes
+consume them. The visual direction is a warm editorial-light interface with evergreen brand
+color. `BackgroundMotif` draws a low-contrast NAV-inspired rising line and soft texture.
+Framer Motion provides entrance, tab, gauge, and chart transitions.
+
+### Accessibility and interaction expectations
+
+When changing a UI surface, preserve:
+
+- keyboard-accessible search and controls;
+- visible loading, empty, unavailable, and error states;
+- responsive layouts, including narrow screens;
+- `prefers-reduced-motion` support for decorative animation;
+- readable contrast and non-color-only explanations of verdicts; and
+- visible source/caveat context wherever a claim may influence a user's interpretation.
+
+---
+
+## 15. Validation and tests
+
+Backend tests currently cover:
+
+- metric contracts against synthetic NAV series (`backend/tests/test_metrics.py`);
+- CAS parsing, matching, and freshness behavior (`test_cas_import.py`); and
+- citation registry behavior (`test_citations.py`).
+
+Run all backend tests:
+
+```bash
+cd backend
+.venv/bin/python -m pytest -q
 ```
 
----
+The frontend uses strict TypeScript. Run its type check with:
 
-## 14. Frontend architecture
-
-- **App shell** (`app/page.tsx`): two tabs ("Review a fund", "My portfolio"), each a
-  self-contained flow with a small phase machine (`idle → running → done/error`).
-- **Streaming** (`lib/api.ts`): SSE frames are parsed manually so the UI shows reasoning being
-  *earned* (live step list), not a dead spinner.
-- **One review component** (`FundReview`) is reused by the single-fund tab and the portfolio
-  drill-down (with an added personal-position strip).
-- **Explainer/USP system**: every `MetricCard` leads with an always-visible, analogy-driven
-  `plain` line; the deeper "what it means / why it matters / how to read it" is one tap away.
-- **Design system** (`globals.css`): dark glassmorphism, CSS custom-property tokens,
-  theme-aware tones (positive/neutral/caution/negative), animated health gauge (SVG arc),
-  percentile markers, rolling-return range bars, category-mix stacked bar. Fully responsive.
-
-Key components: `SearchBar`, `VerdictCard` + `HealthGauge`, `MetricCard`, `PeerBars`,
-`RollingReturns`, `EvidenceLedger`, `ThinkingStream`, `PortfolioBuilder`, `PortfolioOverview`,
-`HoldingsTable`.
-
----
-
-## 15. Testing
-
-`backend/tests/test_metrics.py` locks the **contract of the quant layer** with synthetic NAV
-series: steady-growth returns are positive with ~no drawdown; a constructed 50% crash is
-captured as a ~−50% max drawdown; volatility is non-negative and sane; the report
-round-trips to a dict. If these drift, a verdict could too — so they are the first line of
-trust. Run: `.venv/bin/python -m pytest -q`.
-
-Frontend correctness is guarded by `tsc --noEmit` (strict TypeScript).
-
----
-
-## 16. Performance, caching & concurrency
-
-- **Scheme master** is fetched once, parsed, indexed in memory, cached 24h, and warmed on
-  startup (`main.py` lifespan) so the first search is instant.
-- **NAV history** is cached 12h per fund. Portfolio analysis reuses these caches across funds
-  and their overlapping peers.
-- A global **`asyncio.Semaphore(16)`** bounds concurrent upstream NAV fetches; portfolio
-  holdings are analysed with `asyncio.gather` / `as_completed` (streamed as each finishes).
-- First-ever portfolio analysis of many funds is the slow path (cold caches + peer fetches);
-  subsequent runs are fast. SSE keeps the UI responsive throughout.
-
----
-
-## 17. Extending the system
-
-**Add a metric:** implement a pure function in `metrics.py`, append a `Metric` in
-`compute_metrics`, add an `Explainer` (with a `plain` analogy) in `explainers.py`, and — if it
-should influence the verdict — add a weighted component in `verdict.py`.
-
-**Add a data source:** add a client under `data/` returning a normalised structure; wire it
-into the relevant node. Keep it cached and bounded.
-
-**Wire web research:** implement a fan-out node that searches per claim, routes every result
-through `appraisal.appraise_web_source(...)`, and appends only above-floor claims to the
-evidence ledger between `gather_peers` and `build_evidence`. The gate and evidence model
-already support it.
-
-**Tune the scoring:** the weights and thresholds in `verdict.py` are centralised and
-documented — change them in one place; the tests and transparency hold.
-
----
-
-## 18. Deployment notes
-
-GitHub Pages hosts only the **static landing page** (`docs/index.html`) — it cannot run the
-Python backend. To run the real app on the internet:
-- **Frontend:** Vercel (set `NEXT_PUBLIC_API_BASE` to the deployed API URL).
-- **Backend:** Render / Railway / Fly (run `uvicorn app.main:app`; a persistent disk or a
-  swap to Redis improves the cache). Set `HPR_CORS_ORIGINS` to the frontend origin, and
-  `HPR_ANTHROPIC_API_KEY` if the narrative is desired.
-
----
-
-## 19. Roadmap
-
-### ✅ V1 — Single-fund review
-Validated search, deterministic metrics (returns, rolling returns, volatility, Sharpe,
-Sortino, drawdown), peer-percentile ranking, transparent health score + Continue/Stop/Shift
-verdict, evidence ledger with source scoring, child-level explainers, streaming UI.
-
-### ✅ V2 — Whole-portfolio review
-Holdings by units + avg buy NAV, per-fund personal returns, portfolio health + verdict,
-category mix, category-level concentration (HHI), best/worst performers, "what to reconsider",
-two-tab UI with per-holding drill-down, per-fund streaming.
-
-### ✅ V3 (part 1) — Web research + multi-agent + multi-provider LLM
-On-demand web-research specialist (manager, cost, mandate, size, regulatory) through the
-source-appraisal gate with inline citations; supervisor/orchestrator architecture; LLM layer
-switchable between Claude (Anthropic) and Groq; strict Tavily credit controls.
-
-### ✅ V3 (part 2) — Insights
-On-demand, cached **insight cards** for a fund and for a whole portfolio: a grounded "so what?"
-synthesis (big picture, strengths, biggest watch-out, what to monitor) as an insights
-specialist under the supervisor.
-
-### ✅ V3 (part 3) — CAS statement import
-Upload a CAMS/KFintech CAS (password optional) → `casparser` → **active holdings only**,
-mapped to our universe by **AMFI code then ISIN**, avg NAV from cost÷units; freshness
-**warn >30d / reject >90d**; clear statuses for needs-password / wrong-password / not-a-CAS.
-Strict privacy: parsed **in memory only**, never stored or logged, password discarded after
-use, nothing sent to the LLM/web; only matched holdings returned (no PAN/folio). Holdings
-pre-fill the builder for the user to review before analysis.
-
-### ✅ V3 (part 4) — Market Pulse
-A cited, honest market read (mood, triggers, bright spots, risks, attributed analyst outlook)
-as its own tab + specialist. Credit-aware and cached; projections attributed to named sources,
-never presented as the app's forecast.
-
-### Next
-- Fund-relevant market context inside the review (uses the Market Pulse specialist's `focus`).
-- True stock-level overlap; benchmark-index comparison; broader asset coverage; saved
-  portfolios; persistence/auth/observability for a production deploy.
-
----
-
-## 20. Honesty & compliance
-
-Truthfolio is **analytical, educational output — not personalised investment advice** (not
-SEBI RIA advice). Verdicts are based on past NAV data; past performance does not guarantee
-future results. Factors not yet incorporated (manager change, mandate drift, expense ratio)
-are flagged so a user never acts on a partial picture. Being transparent about limits makes
-the product *more* trustworthy — which is the entire point.
-
----
-
-## 21. Glossary
-
-| Term | Plain-English meaning |
-| ---- | --------------------- |
-| **NAV** | The per-unit price of a mutual fund, published daily. |
-| **CAGR** | The average yearly growth rate that compounds to the total gain — like a car's average speed over a trip. |
-| **Rolling returns** | Returns measured over every possible holding window (e.g. all 3-year stretches), not one lucky start-to-end number. |
-| **Volatility** | How bumpy the ride is — how much the value swings around its average. |
-| **Sharpe ratio** | Reward earned per unit of total bumpiness — "was the bumpy ride worth it?" |
-| **Sortino ratio** | Like Sharpe, but only counts the *downward* (painful) swings. |
-| **Maximum drawdown** | The worst peak-to-trough fall — the scariest moment you'd have lived through. |
-| **Percentile (vs peers)** | How the fund ranks against similar funds; 90th percentile = better than 90% of them. |
-| **HHI** | A concentration score for a portfolio; higher means more of your money rides on fewer bets. |
-| **Health score** | Truthfolio's 0–100 composite of the above, weighted transparently. |
+```bash
+cd frontend
+npx tsc --noEmit
 ```
+
+There is no frontend component-test suite configured at present. Use the existing project
+checks and manually verify critical UI states when a change affects interaction behavior.
+
+---
+
+## 16. Operational characteristics and limitations
+
+### Performance
+
+- The AMFI master is cached and warmed at API startup.
+- NAV series are cached for 12 hours by default.
+- A semaphore limits concurrent mfapi fetches to 16; portfolio work fans out per holding.
+- First-time analysis can be slower because the subject and its peers may need cold NAV fetches.
+- The portfolio SSE stream reports holdings as individual reviews finish.
+- Insight, search, and market results use local cache lifetimes described above.
+
+### Current reliability and scaling boundaries
+
+- The JSON cache is local to a backend instance; it is not shared across replicas.
+- Tavily's daily counter is in process memory and resets when the backend process restarts. It
+  is not a cross-instance billing quota.
+- The backend has no user accounts, persistent portfolio storage, or authentication layer.
+- External data availability and freshness depend on AMFI and mfapi.in.
+- A portfolio review omits individual holdings that fail to analyse and reports the count.
+- The peer sample is capped at 18 and is a sample, not a full census of every eligible scheme.
+
+### Errors and fallbacks
+
+- Invalid scheme codes resolve to HTTP 404 for JSON routes; Pydantic validation failures are
+  HTTP 422.
+- Missing optional-service keys produce explicit disabled/unavailable responses.
+- The deterministic narrative remains available when no LLM is configured or a narrative
+  generation fails.
+- Research/market search failures can yield no reliable claims; an empty result is not a
+  positive finding.
+
+---
+
+## 17. How to extend Truthfolio
+
+### Add a metric
+
+1. Implement its calculation in `analysis/metrics.py`.
+2. Add it to `compute_metrics`.
+3. Add an explainer and interpretation bands in `analysis/explainers.py`.
+4. Decide whether it should affect peer ranks in `analysis/peers.py`.
+5. If it belongs in the verdict, add a weighted component in `agent/verdict.py`.
+6. Add synthetic-input tests and update this guide's metric/scoring tables.
+
+### Add a specialist task
+
+1. Implement a typed state transformation in `agent/nodes.py` or a focused specialist module.
+2. Register it in `supervisor._SPECIALISTS`.
+3. Add an ordered task plan in `supervisor.PLANS`.
+4. Add an entry point in `agent/graph.py` only if another module needs a stable helper.
+5. Wire the API and frontend only when there is a user-facing route.
+6. Document whether it is deterministic, uses optional services, is on demand, and is cached.
+
+### Add an endpoint
+
+Add request/response models in `models/schemas.py` where practical; implement the route in
+`api/routes.py`; keep errors explicit; define the payload and fallback behavior; then update
+the API table and tests.
+
+### Change the interface
+
+First identify whether the surface is shared (such as `FundReview`) or flow-specific.
+Preserve the same response model and visible educational caveats. Keep data transport in
+`lib/api.ts`, shared types in `lib/types.ts`, and shared visual tokens in `globals.css`.
+
+---
+
+## 18. Deployment
+
+GitHub Pages serves only the static landing page in `docs/index.html`; it cannot run the
+FastAPI service or the Next.js application.
+
+For a live application:
+
+- **Frontend:** deploy the Next.js app to a Next.js-compatible host and configure
+  `NEXT_PUBLIC_API_BASE` to the deployed backend's `/api` URL.
+- **Backend:** deploy FastAPI with `uvicorn app.main:app`; configure `HPR_CORS_ORIGINS` to
+  allow the frontend origin.
+- **Optional services:** set the selected LLM provider key and Tavily key only if the optional
+  narrative/research/insights/market capabilities should be enabled.
+- **Cache:** a persistent disk preserves the local JSON cache across restarts on a single
+  instance. A multi-instance deployment would need a shared cache and shared search-budget
+  mechanism for consistent behavior.
+
+Never commit `.env` files or API credentials.
+
+---
+
+## 19. Current product scope
+
+### Implemented
+
+- AMFI-validated mutual-fund search.
+- Deterministic fund review with NAV metrics, peer ranks, health score, verdict, evidence, and
+  plain-language explainers.
+- Fund and portfolio SSE progress.
+- Portfolio analysis from user-entered holdings.
+- CAMS/KFintech CAS import, active-holding matching, and freshness handling.
+- On-demand fund research with source appraisal and citations.
+- On-demand fund/portfolio insight cards.
+- On-demand cited Market Pulse.
+- Optional Anthropic/Groq provider switching.
+
+### Not implemented yet
+
+- Saved portfolios, accounts, authentication, or cross-device persistence.
+- Direct stock-holdings overlap between funds.
+- Benchmark-index comparison.
+- Broader asset classes beyond the current mutual-fund analysis universe.
+- Production-grade shared cache / distributed web-search budget / observability.
+- Fund-focused market context embedded in the standard review.
+
+This is a scope list, not a delivery schedule.
+
+---
+
+## 20. Plain-English glossary
+
+| Term | Plain-English explanation |
+| --- | --- |
+| **AMFI** | The Association of Mutual Funds in India; its scheme master provides official scheme identifiers and names. |
+| **CAGR** | Compound annual growth rate: the smoothed yearly growth rate that connects a start value to an end value. |
+| **Confidence** | Truthfolio's indicator of data completeness and agreement between scoring components; not a promise of correctness. |
+| **Drawdown** | How far the NAV fell from an earlier peak before or during recovery. |
+| **Evidence ledger** | The inspectable list of claims used to explain a fund result, with source details. |
+| **HHI** | A concentration measure: add each holding's weight squared. A larger result means more value sits in fewer holdings. |
+| **ISIN** | An international identifier for a security or scheme option; used as a fallback when matching CAS holdings. |
+| **NAV** | Net asset value: the published value per unit of a fund. |
+| **Percentile** | The share of the comparison group a result is at least as good as, accounting for whether high or low values are better. |
+| **Risk-free rate** | A reference return used in Sharpe and Sortino calculations to represent a low-risk alternative. |
+| **Rolling return** | The return for many overlapping historical holding periods, rather than only one chosen start/end date. |
+| **Sharpe ratio** | A rough comparison of excess return with overall return variation. Higher is generally better in this scoring model. |
+| **Sortino ratio** | Like Sharpe, but uses downside variation rather than all variation. |
+| **Volatility** | How widely daily returns moved around their average; it describes movement, not whether the movement was up or down. |
+
+---
+
+**Disclaimer:** Truthfolio provides educational analysis, not personalised investment advice.
+Past NAV performance does not guarantee future results. A score or verdict should not be the
+sole basis for an investment decision.

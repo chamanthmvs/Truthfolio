@@ -14,8 +14,18 @@ interface Props {
 }
 
 export default function PortfolioBuilder({ drafts, setDrafts, onAnalyze }: Props) {
+  const [builderNotice, setBuilderNotice] = useState("");
+
   function add(scheme: SchemeHit) {
-    if (drafts.some((d) => d.scheme.code === scheme.code)) return;
+    if (drafts.some((d) => d.scheme.code === scheme.code)) {
+      setBuilderNotice("That fund is already in your holdings.");
+      return;
+    }
+    if (drafts.length >= 40) {
+      setBuilderNotice("You can analyse up to 40 funds at a time.");
+      return;
+    }
+    setBuilderNotice("");
     setDrafts([...drafts, { scheme, units: 0, avg_nav: 0 }]);
   }
   function update(code: string, patch: Partial<DraftHolding>) {
@@ -28,16 +38,22 @@ export default function PortfolioBuilder({ drafts, setDrafts, onAnalyze }: Props
   const ready = drafts.length > 0 && drafts.every((d) => d.units > 0 && d.avg_nav > 0);
   const totalInvested = drafts.reduce((s, d) => s + d.units * d.avg_nav, 0);
   const needsAvgNav = drafts.some((d) => d.units > 0 && !(d.avg_nav > 0));
+  const missingUnits = drafts.some((d) => !(d.units > 0));
 
   return (
     <div className="space-y-5">
       <StatementImport setDrafts={setDrafts} />
 
-      <div className="flex items-center gap-3 text-xs text-ink-faint">
+      <div className="builder-divider flex items-center gap-3 text-xs text-ink-faint">
         <span className="h-px flex-1 bg-line" /> or add funds manually <span className="h-px flex-1 bg-line" />
       </div>
 
       <SearchBar onSelect={add} />
+      {builderNotice && (
+        <p className="rounded-xl border border-caution/25 bg-caution/5 px-4 py-3 text-xs text-ink-dim" role="status">
+          {builderNotice}
+        </p>
+      )}
 
       <AnimatePresence>
         {drafts.length > 0 && (
@@ -48,9 +64,12 @@ export default function PortfolioBuilder({ drafts, setDrafts, onAnalyze }: Props
             className="glass rounded-2xl p-4 sm:p-5"
           >
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-dim">
-                Your holdings ({drafts.length})
-              </h3>
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-dim">
+                  Your holdings <span className="ml-1 rounded-full bg-brand/5 px-2 py-0.5 text-[10px] text-brand">{drafts.length} / 40</span>
+                </h3>
+                <p className="mt-1 text-[11px] text-ink-faint">Check every entry before running the analysis.</p>
+              </div>
               {totalInvested > 0 && (
                 <span className="text-xs text-ink-faint">
                   invested so far: {formatINR(totalInvested)}
@@ -69,7 +88,7 @@ export default function PortfolioBuilder({ drafts, setDrafts, onAnalyze }: Props
               {drafts.map((d) => (
                 <div
                   key={d.scheme.code}
-                  className="flex flex-col gap-3 rounded-xl border border-line p-3 sm:flex-row sm:items-center"
+                  className="holding-editor flex flex-col gap-3 rounded-xl border border-line p-3 sm:flex-row sm:items-center"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium text-ink">{d.scheme.name}</div>
@@ -112,12 +131,20 @@ export default function PortfolioBuilder({ drafts, setDrafts, onAnalyze }: Props
             <button
               disabled={!ready}
               onClick={onAnalyze}
+              aria-describedby={!ready ? "portfolio-readiness" : undefined}
               className="mt-4 w-full rounded-xl bg-brand py-3 text-sm font-semibold text-white shadow-sm transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-ink-faint"
             >
               {ready
                 ? "Analyze my portfolio →"
                 : "Enter units and avg buy NAV for every fund"}
             </button>
+            <p id="portfolio-readiness" className="mt-2 text-center text-[11px] text-ink-faint" aria-live="polite">
+              {ready
+                ? "Your entries are ready. The analysis uses current public NAV data."
+                : missingUnits
+                  ? "Add the number of units held for every fund."
+                  : "Add an average buy NAV for every fund to calculate your personal returns."}
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -160,8 +187,13 @@ function StatementImport({ setDrafts }: { setDrafts: (d: DraftHolding[]) => void
         if (r.stale && r.message) parts.push(r.message);
         setMsg({ text: parts.join(" "), tone: r.stale ? "warn" : "ok" });
       }
-    } catch {
-      setMsg({ text: "Something went wrong reading the file. Please try again.", tone: "err" });
+    } catch (error) {
+      setMsg({
+        text: error instanceof Error
+          ? `Import failed: ${error.message}. Please check the file and try again.`
+          : "Import failed. Please check the file and try again.",
+        tone: "err",
+      });
     } finally {
       setBusy(false);
       setPassword(""); // never keep the password around
@@ -252,6 +284,7 @@ function NumberField({
         type="number"
         min={0}
         step="any"
+        inputMode="decimal"
         value={value || ""}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
         placeholder="0"

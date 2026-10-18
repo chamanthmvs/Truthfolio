@@ -96,7 +96,7 @@ backend/    FastAPI + LangGraph API
   app/analysis/   metrics · peers · portfolio · explainers
   app/agent/      supervisor · specialists (quant/research/verdict/narrator)
                   scoring/verdict · appraisal gate · citations · LLM provider factory
-frontend/   Next.js app (two tabs: fund review / portfolio)
+frontend/   Next.js app (fund review / portfolio / market pulse)
 docs/       TECHNICAL.md (engineering reference) · index.html (landing page)
 ```
 
@@ -108,7 +108,7 @@ reference, and extension points.
 - ✅ **V1** — single-fund review
 - ✅ **V2** — whole-portfolio review
 - ✅ **V3** — web research w/ citations · supervisor multi-agent · multi-provider LLM · insights · CAS import · market pulse
-- 🚧 **Next** — *in progress… loading.*
+- 🔭 **Possible next steps** — benchmark comparison · stock-level overlap · saved portfolios (see the technical guide for current scope).
 
 ## Disclaimer
 
