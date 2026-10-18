@@ -132,6 +132,15 @@ export interface DraftHolding {
   avg_nav: number;
 }
 
+export interface Footnote {
+  n: number;
+  title: string;
+  url: string;
+  domain: string;
+  reliability: number;
+  published: string | null;
+}
+
 export interface ReviewResponse {
   scheme_code: string;
   scheme_name: string;
@@ -147,6 +156,8 @@ export interface ReviewResponse {
   rolling: RollingStat[];
   peers: PeerReport;
   evidence: EvidenceItem[];
+  footnotes: Footnote[];
   steps: string[];
   llm_used: boolean;
+  research_used: boolean;
 }

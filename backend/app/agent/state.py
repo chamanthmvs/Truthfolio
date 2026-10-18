@@ -35,6 +35,8 @@ class AgentState(TypedDict, total=False):
     # --- inputs ---
     scheme_code: str
     scheme_name: str
+    base_name: str
+    amc: str
     category: str
     units: float | None
     invested_amount: float | None
@@ -43,6 +45,9 @@ class AgentState(TypedDict, total=False):
     metrics: dict[str, Any]
     peers: dict[str, Any]
     evidence: list[EvidenceItem]
+    research_evidence: list[EvidenceItem]
+    footnotes: list[dict[str, Any]]  # numbered citations for web-sourced claims
+    research_used: bool
 
     # --- outputs ---
     health_score: float  # 0..100 transparent composite

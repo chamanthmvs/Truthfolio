@@ -63,5 +63,7 @@ class ReviewResponse(BaseModel):
     rolling: list[dict]
     peers: dict
     evidence: list[dict]
+    footnotes: list[dict] = []
     steps: list[str]
     llm_used: bool
+    research_used: bool = False

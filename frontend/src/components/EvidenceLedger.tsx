@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { EvidenceItem } from "@/lib/types";
 import { toneColor } from "@/lib/format";
+import { CitedText } from "./Citations";
 
 const DIR_LABEL: Record<string, string> = {
   positive: "Supports",
@@ -44,7 +45,9 @@ function EvidenceRow({ item, index }: { item: EvidenceItem; index: number }) {
         >
           {DIR_LABEL[item.direction]}
         </span>
-        <span className="flex-1 text-sm leading-snug text-ink">{item.claim}</span>
+        <span className="flex-1 text-sm leading-snug text-ink">
+          <CitedText text={item.claim} />
+        </span>
         <span className="shrink-0 font-mono text-[11px] text-ink-faint">
           w {item.weight.toFixed(2)}
         </span>

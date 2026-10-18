@@ -54,7 +54,8 @@ async def _run_review(scheme_code: str, units=None, invested_amount=None) -> Rev
     try:
         state = await review_fund(
             scheme_code=scheme.code, scheme_name=scheme.name,
-            category=scheme.category, units=units, invested_amount=invested_amount,
+            category=scheme.category, base_name=scheme.base_name, amc=scheme.amc,
+            units=units, invested_amount=invested_amount,
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc))
@@ -150,6 +151,7 @@ async def review_stream(scheme_code: str = Query(...)):
         graph = build_graph()
         initial = {
             "scheme_code": scheme.code, "scheme_name": scheme.name,
+            "base_name": scheme.base_name, "amc": scheme.amc,
             "category": scheme.category, "steps": [],
         }
         last_steps = 0

@@ -34,7 +34,8 @@ async def analyze_holding(holding: HoldingInput) -> dict | None:
     try:
         state = await review_fund(
             scheme_code=scheme.code, scheme_name=scheme.name,
-            category=scheme.category, units=holding.units, invested_amount=invested,
+            category=scheme.category, base_name=scheme.base_name, amc=scheme.amc,
+            units=holding.units, invested_amount=invested,
         )
     except Exception:
         return None

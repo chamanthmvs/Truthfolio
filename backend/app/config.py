@@ -37,14 +37,29 @@ class Settings(BaseSettings):
     # --- Risk-free rate used for Sharpe/Sortino (annualised, India ~ short-term G-Sec) ---
     risk_free_rate: float = 0.065
 
-    # --- LLM (optional; reasoning layer only) ---
+    # --- LLM (reasoning layer: narrative, research extraction, insights, market pulse) ---
     anthropic_api_key: str | None = None
     llm_model: str = "claude-opus-4-8"
     llm_max_tokens: int = 4096
 
+    # --- Web search (Tavily) for the evidence-research + market-pulse agents ---
+    tavily_api_key: str | None = None
+    tavily_base: str = "https://api.tavily.com/search"
+    search_max_results: int = 6
+    search_ttl_hours: int = 6  # cache results to control cost
+
     @property
     def llm_enabled(self) -> bool:
         return bool(self.anthropic_api_key)
+
+    @property
+    def search_enabled(self) -> bool:
+        return bool(self.tavily_api_key)
+
+    @property
+    def research_enabled(self) -> bool:
+        # Real web research needs BOTH a search provider and an LLM to judge/extract claims.
+        return self.llm_enabled and self.search_enabled
 
 
 @lru_cache

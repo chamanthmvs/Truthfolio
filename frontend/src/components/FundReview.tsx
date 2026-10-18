@@ -7,6 +7,7 @@ import MetricCard from "./MetricCard";
 import PeerBars from "./PeerBars";
 import RollingReturns from "./RollingReturns";
 import EvidenceLedger from "./EvidenceLedger";
+import { CitedText, SourcesList } from "./Citations";
 
 export default function FundReview({
   review,
@@ -44,6 +45,8 @@ export default function FundReview({
       <Panel title="Evidence ledger — nothing is taken on faith">
         <EvidenceLedger evidence={review.evidence} />
       </Panel>
+
+      <SourcesList footnotes={review.footnotes} />
 
       <Caveats caveats={review.caveats} />
     </div>
@@ -122,7 +125,7 @@ function Narrative({ review }: { review: ReviewResponse }) {
           const bullet = p.trim().startsWith("•");
           return (
             <p key={i} className={bullet ? "pl-4 text-ink" : i === 0 ? "font-medium text-ink" : ""}>
-              {p}
+              <CitedText text={p} />
             </p>
           );
         })}

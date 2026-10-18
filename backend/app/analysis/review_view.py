@@ -38,6 +38,8 @@ def assemble_review(
         "rolling": metrics_block.get("rolling", []),
         "peers": state.get("peers", {}),
         "evidence": state.get("evidence", []),
+        "footnotes": state.get("footnotes", []),
         "steps": state.get("steps", []),
         "llm_used": state.get("llm_used", False),
+        "research_used": state.get("research_used", False),
     }

@@ -41,10 +41,40 @@ async def gather_peers(state: AgentState) -> AgentState:
     return {"peers": report.as_dict(), "category": report.category, "steps": steps}
 
 
+async def gather_research(state: AgentState) -> AgentState:
+    """Web-research the qualitative facts (manager, cost, mandate, size, regulatory).
+
+    No-op without keys: returns empty, leaving the deterministic review untouched.
+    """
+    from app.agent import research
+
+    result = await research.run_fund_research(
+        scheme_name=state.get("scheme_name", ""),
+        base_name=state.get("base_name") or state.get("scheme_name", ""),
+        amc=state.get("amc", ""),
+        category=state.get("category", ""),
+    )
+    steps = state.get("steps", [])
+    if result["used"]:
+        steps = steps + [
+            f"Web research: {len(result['evidence'])} cited claim(s) from "
+            f"{len(result['footnotes'])} appraised source(s)."
+        ]
+    return {
+        "research_evidence": result["evidence"],
+        "footnotes": result["footnotes"],
+        "research_used": result["used"],
+        "steps": steps,
+    }
+
+
 async def build_evidence(state: AgentState) -> AgentState:
-    evidence = verdict_engine.build_evidence(state["metrics"], state["peers"])
+    computed = verdict_engine.build_evidence(state["metrics"], state["peers"])
+    researched = state.get("research_evidence", []) or []
+    evidence = computed + researched
+    extra = f" + {len(researched)} web-sourced" if researched else ""
     steps = state.get("steps", []) + [
-        f"Assembled evidence ledger: {len(evidence)} primary (computed) items."
+        f"Assembled evidence ledger: {len(computed)} primary (computed){extra} item(s)."
     ]
     return {"evidence": evidence, "steps": steps}
 
