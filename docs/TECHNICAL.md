@@ -296,9 +296,10 @@ backend/
     main.py                FastAPI app, CORS, startup warmup of scheme master
     api/routes.py          All HTTP endpoints (REST + SSE)
     data/
-      amfi.py              Scheme master: parse NAVAll.txt, index, gated fuzzy search
+      amfi.py              Scheme master: parse NAVAll.txt, index (code + ISIN), gated search
       navapi.py            NAV history client (+ asyncio.Semaphore)
       websearch.py         Tavily client (cached, daily-capped, no-op without key)
+      cas_import.py        CAS parsing → active holdings (in-memory, PII-safe)
       cache.py             TTL file cache (JSON, best-effort)
     analysis/
       metrics.py           Pure quant functions + MetricsReport
@@ -598,6 +599,7 @@ Base path `/api`. Interactive docs at `/docs` (Swagger) and `/redoc`.
 | GET    | `/review/stream`        | Single-fund review as SSE (`step`* → `result`).    |
 | POST   | `/portfolio`            | Whole-portfolio analysis (synchronous).            |
 | POST   | `/portfolio/stream`     | Portfolio as SSE (`start` → `holding`* → `result`).|
+| POST   | `/portfolio/import`     | Parse an uploaded CAMS/KFintech CAS → matched active holdings (multipart: file + optional password). |
 | GET    | `/research?scheme_code=`| On-demand web research for one fund (spends credits; cited claims + footnotes + budget). |
 | GET    | `/insights?scheme_code=`| Structured insight cards for one fund (LLM, cached; deterministic fallback). |
 | POST   | `/insights/portfolio`   | Portfolio-level insight cards from a computed summary + brief holdings. |
@@ -796,9 +798,15 @@ On-demand, cached **insight cards** for a fund and for a whole portfolio: a grou
 synthesis (big picture, strengths, biggest watch-out, what to monitor) as an insights
 specialist under the supervisor.
 
+### ✅ V3 (part 3) — CAS statement import
+Upload a CAMS/KFintech CAS (password optional) → `casparser` → **active holdings only**,
+mapped to our universe by **AMFI code then ISIN**, avg NAV from cost÷units; freshness
+**warn >30d / reject >90d**; clear statuses for needs-password / wrong-password / not-a-CAS.
+Strict privacy: parsed **in memory only**, never stored or logged, password discarded after
+use, nothing sent to the LLM/web; only matched holdings returned (no PAN/folio). Holdings
+pre-fill the builder for the user to review before analysis.
+
 ### Next
-- **CAS statement import** — upload a CAMS/KFintech CAS; parse active holdings by ISIN
-  (in-memory, never stored); warn >30d / reject >90d; pre-fill the builder for review.
 - **Market Pulse tab** — overall Indian market + fund-relevant sentiment, triggers, cited
   projections (attributed, never presented as Truthfolio's own forecast).
 - True stock-level overlap; benchmark-index comparison; broader asset coverage; saved

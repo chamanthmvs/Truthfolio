@@ -17,6 +17,8 @@ dependencies = [
     "langchain-core>=0.3.0",
     "langchain-anthropic>=0.2.0",
     "langchain-groq>=0.2.0",
+    "casparser>=1.4.0",
+    "python-multipart>=0.0.9",
     "tenacity>=9.0.0",
 ]
 

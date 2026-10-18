@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     # --- Risk-free rate used for Sharpe/Sortino (annualised, India ~ short-term G-Sec) ---
     risk_free_rate: float = 0.065
 
+    # --- CAS statement import: freshness policy ---
+    cas_warn_days: int = 30
+    cas_reject_days: int = 90
+    cas_max_bytes: int = 15_000_000
+
     # --- LLM (multi-provider reasoning layer: narrative, research, insights, market) ---
     # Provider-switchable via LLM_PROVIDER ("anthropic" | "groq"). Keys are read from the
     # standard, un-prefixed names (ANTHROPIC_API_KEY / GROQ_API_KEY) as well as HPR_-prefixed

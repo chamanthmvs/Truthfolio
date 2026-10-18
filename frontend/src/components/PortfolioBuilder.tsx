@@ -1,8 +1,10 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SearchBar from "./SearchBar";
-import type { DraftHolding, SchemeHit } from "@/lib/types";
+import { importStatement } from "@/lib/api";
+import type { DraftHolding, ImportResult, SchemeHit } from "@/lib/types";
 import { formatINR } from "@/lib/format";
 
 interface Props {
@@ -25,9 +27,16 @@ export default function PortfolioBuilder({ drafts, setDrafts, onAnalyze }: Props
 
   const ready = drafts.length > 0 && drafts.every((d) => d.units > 0 && d.avg_nav > 0);
   const totalInvested = drafts.reduce((s, d) => s + d.units * d.avg_nav, 0);
+  const needsAvgNav = drafts.some((d) => d.units > 0 && !(d.avg_nav > 0));
 
   return (
     <div className="space-y-5">
+      <StatementImport setDrafts={setDrafts} />
+
+      <div className="flex items-center gap-3 text-xs text-ink-faint">
+        <span className="h-px flex-1 bg-line" /> or add funds manually <span className="h-px flex-1 bg-line" />
+      </div>
+
       <SearchBar onSelect={add} />
 
       <AnimatePresence>
@@ -48,6 +57,13 @@ export default function PortfolioBuilder({ drafts, setDrafts, onAnalyze }: Props
                 </span>
               )}
             </div>
+
+            {needsAvgNav && (
+              <p className="mb-3 rounded-lg border border-caution/25 bg-caution/5 px-3 py-2 text-xs text-ink-dim">
+                Some funds need an average buy NAV (your statement didn&apos;t include a cost for
+                them). Please fill those in before analysing.
+              </p>
+            )}
 
             <div className="space-y-2">
               {drafts.map((d) => (
@@ -70,6 +86,7 @@ export default function PortfolioBuilder({ drafts, setDrafts, onAnalyze }: Props
                     <NumberField
                       label="Avg buy NAV ₹"
                       value={d.avg_nav}
+                      highlight={d.units > 0 && !(d.avg_nav > 0)}
                       onChange={(v) => update(d.scheme.code, { avg_nav: v })}
                     />
                     <div className="hidden w-24 shrink-0 text-right sm:block">
@@ -107,10 +124,112 @@ export default function PortfolioBuilder({ drafts, setDrafts, onAnalyze }: Props
 
       {drafts.length === 0 && (
         <p className="text-center text-sm text-ink-faint">
-          Search and add each fund you hold, then enter how many units you own and the average
-          NAV you bought at.
+          Upload your CAS to auto-fill your holdings, or search and add each fund manually.
         </p>
       )}
+    </div>
+  );
+}
+
+/* ----------------------------- CAS import ------------------------------ */
+
+function StatementImport({ setDrafts }: { setDrafts: (d: DraftHolding[]) => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [password, setPassword] = useState("");
+  const [needsPassword, setNeedsPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; tone: "ok" | "warn" | "err" } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function run() {
+    if (!file) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r: ImportResult = await importStatement(file, password);
+      if (r.status === "password_required") {
+        setNeedsPassword(true);
+        setMsg({ text: r.message ?? "This statement needs a password.", tone: "warn" });
+      } else if (r.status === "error") {
+        setMsg({ text: r.message ?? "Couldn't read this statement.", tone: "err" });
+      } else {
+        const holdings = r.holdings ?? [];
+        setDrafts(holdings.map((h) => ({ scheme: h.scheme, units: h.units, avg_nav: h.avg_nav ?? 0 })));
+        const parts = [`Imported ${holdings.length} active holding${holdings.length === 1 ? "" : "s"}.`];
+        if (r.unmatched && r.unmatched.length) parts.push(`${r.unmatched.length} couldn't be matched and were skipped.`);
+        if (r.stale && r.message) parts.push(r.message);
+        setMsg({ text: parts.join(" "), tone: r.stale ? "warn" : "ok" });
+      }
+    } catch {
+      setMsg({ text: "Something went wrong reading the file. Please try again.", tone: "err" });
+    } finally {
+      setBusy(false);
+      setPassword(""); // never keep the password around
+    }
+  }
+
+  const toneCls = {
+    ok: "border-positive/25 bg-positive/5",
+    warn: "border-caution/25 bg-caution/5",
+    err: "border-negative/25 bg-negative/5",
+  } as const;
+
+  return (
+    <div className="glass-strong rounded-2xl p-5 sm:p-6">
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-dim">
+        Import from your statement (CAS)
+      </h3>
+      <p className="mt-1 text-xs text-ink-faint">
+        Upload your CAMS/KFintech Consolidated Account Statement — we&apos;ll auto-fill your
+        current holdings so you don&apos;t have to add them by hand.
+      </p>
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <label className="flex-1">
+          <span className="mb-1 block text-[11px] text-ink-faint">CAS PDF</span>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            onChange={(e) => { setFile(e.target.files?.[0] ?? null); setMsg(null); }}
+            className="block w-full text-sm text-ink-dim file:mr-3 file:rounded-lg file:border file:border-line file:bg-bg file:px-3 file:py-1.5 file:text-sm file:text-ink hover:file:border-brand/40"
+          />
+        </label>
+        <label className={needsPassword ? "sm:w-48" : "sm:w-44"}>
+          <span className="mb-1 block text-[11px] text-ink-faint">
+            Password {needsPassword ? "(required)" : "(only if protected)"}
+          </span>
+          <input
+            type="password"
+            value={password}
+            autoFocus={needsPassword}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••"
+            className={`w-full rounded-lg border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none transition focus:ring-2 focus:ring-brand/20 ${
+              needsPassword ? "border-caution/50" : "border-line focus:border-brand"
+            }`}
+          />
+        </label>
+        <button
+          onClick={run}
+          disabled={!file || busy}
+          className="shrink-0 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition enabled:hover:brightness-110 disabled:opacity-50"
+        >
+          {busy ? "Reading…" : "Import"}
+        </button>
+      </div>
+
+      {msg && (
+        <p className={`mt-3 rounded-lg border px-3 py-2 text-xs text-ink-dim ${toneCls[msg.tone]}`}>
+          {msg.text}
+        </p>
+      )}
+
+      <p className="mt-3 flex items-center gap-1.5 text-[11px] text-ink-faint">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 10V8a6 6 0 1112 0v2M5 10h14v10H5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        Processed in memory only — never saved or logged, password used once then discarded,
+        nothing sent to any AI or web service.
+      </p>
     </div>
   );
 }
@@ -119,10 +238,12 @@ function NumberField({
   label,
   value,
   onChange,
+  highlight,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
+  highlight?: boolean;
 }) {
   return (
     <label className="flex flex-col">
@@ -134,7 +255,9 @@ function NumberField({
         value={value || ""}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
         placeholder="0"
-        className="w-24 rounded-lg border border-line bg-bg px-2.5 py-1.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+        className={`w-24 rounded-lg border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none transition focus:ring-2 focus:ring-brand/20 ${
+          highlight ? "border-caution/60" : "border-line focus:border-brand"
+        }`}
       />
     </label>
   );

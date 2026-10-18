@@ -2,12 +2,24 @@ import type {
   DraftHolding,
   EvidenceItem,
   Footnote,
+  ImportResult,
   InsightsResponse,
   PortfolioResponse,
   PortfolioSummary,
   ReviewResponse,
   SchemeHit,
 } from "./types";
+
+/** Upload a CAS PDF (+ optional password) and get back matched holdings. */
+export async function importStatement(file: File, password: string): Promise<ImportResult> {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("password", password);
+  const res = await fetch(`${API_BASE}/portfolio/import`, { method: "POST", body: fd });
+  if (res.status === 413) return { status: "error", message: "That file is too large — upload the CAS PDF itself." };
+  if (!res.ok) throw new Error(`import failed: ${res.status}`);
+  return res.json();
+}
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8077/api";

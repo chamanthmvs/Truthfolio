@@ -29,7 +29,8 @@ It runs entirely on **free, public data** (AMFI + mfapi) — no API keys needed 
 - An evidence ledger where every claim carries its source and a reliability score
 
 **Portfolio review**
-- Add holdings by units + average buy NAV → your real gain/loss and return, per fund and overall
+- Add holdings manually, or **import your CAS** (CAMS/KFintech) — parsed privately in memory
+- Units + average buy NAV → your real gain/loss and return, per fund and overall
 - Portfolio health score and verdict, category mix, and concentration analysis
 - Best/worst performers and a clear "what to reconsider" list
 - Drill into any holding for its full fund review
@@ -102,7 +103,7 @@ reference, and extension points.
 
 - ✅ **V1** — single-fund review
 - ✅ **V2** — whole-portfolio review
-- ✅ **V3** — web research with citations · supervisor multi-agent · provider-switchable LLM · insights
+- ✅ **V3** — web research w/ citations · supervisor multi-agent · provider-switchable LLM · insights · CAS import
 - 🚧 **Next** — *in progress… loading.*
 
 ## Disclaimer

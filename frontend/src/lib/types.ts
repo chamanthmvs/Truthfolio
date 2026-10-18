@@ -132,6 +132,24 @@ export interface DraftHolding {
   avg_nav: number;
 }
 
+export interface ImportedHolding {
+  scheme: SchemeHit;
+  units: number;
+  avg_nav: number | null;
+  current_value: number | null;
+}
+
+export interface ImportResult {
+  status: "ok" | "password_required" | "error";
+  reason?: string;
+  message?: string | null;
+  statement_date?: string | null;
+  stale?: boolean;
+  cas_type?: string | null;
+  holdings?: ImportedHolding[];
+  unmatched?: string[];
+}
+
 export interface Insight {
   title: string;
   detail: string;

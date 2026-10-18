@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 
 from app.agent.graph import review_fund
@@ -133,6 +133,31 @@ async def insights_portfolio(payload: dict = Body(...)):
     if not summary:
         raise HTTPException(422, "A portfolio summary is required.")
     result = await insights_mod.generate_portfolio_insights(summary, holdings)
+    return result
+
+
+@router.post("/portfolio/import")
+async def portfolio_import(file: UploadFile = File(...), password: str = Form("")):
+    """Parse an uploaded CAMS/KFintech CAS into reviewable holdings.
+
+    Privacy: the file and password live only for this request — parsed in memory, never
+    written to disk, never logged, never sent to the LLM/web. Only matched holdings return.
+    """
+    from app.config import get_settings
+    from app.data import cas_import
+
+    settings = get_settings()
+    data = await file.read()
+    if len(data) > settings.cas_max_bytes:
+        raise HTTPException(413, "File is too large. Please upload the CAS PDF itself.")
+
+    master = await amfi.get_master()
+    try:
+        result = await asyncio.to_thread(cas_import.import_cas, data, password, master)
+    finally:
+        # Scrub the sensitive buffers as soon as we're done with them.
+        data = b""
+        password = ""
     return result
 
 

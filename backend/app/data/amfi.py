@@ -71,15 +71,24 @@ class Scheme:
 class SchemeMaster:
     schemes: list[Scheme] = field(default_factory=list)
     _by_code: dict[str, Scheme] = field(default_factory=dict)
+    _by_isin: dict[str, Scheme] = field(default_factory=dict)
     # Parallel list of lowercased "name | amc" strings for fast fuzzy matching.
     _search_corpus: list[str] = field(default_factory=list)
 
     def index(self) -> None:
         self._by_code = {s.code: s for s in self.schemes}
+        self._by_isin = {}
+        for s in self.schemes:
+            for isin in (s.isin_growth, s.isin_reinvest):
+                if isin:
+                    self._by_isin.setdefault(isin.strip().upper(), s)
         self._search_corpus = [f"{s.base_name} | {s.amc}".lower() for s in self.schemes]
 
     def get(self, code: str) -> Scheme | None:
         return self._by_code.get(str(code))
+
+    def by_isin(self, isin: str) -> Scheme | None:
+        return self._by_isin.get(isin.strip().upper()) if isin else None
 
     def search(self, query: str, limit: int = 12) -> list[Scheme]:
         q = query.strip().lower()
