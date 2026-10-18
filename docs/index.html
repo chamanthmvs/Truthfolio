@@ -24,10 +24,16 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
-  body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);
-    -webkit-font-smoothing:antialiased;line-height:1.55;overflow-x:hidden;
-    background-image:radial-gradient(1100px 480px at 50% -320px,rgba(14,124,90,.07),transparent 70%);
-    background-repeat:no-repeat}
+  html{background:var(--bg)}
+  body{font-family:Inter,system-ui,sans-serif;background:transparent;color:var(--ink);
+    -webkit-font-smoothing:antialiased;line-height:1.55;overflow-x:hidden;position:relative}
+  /* signature NAV growth-curve background — subtle, behind all content */
+  .bgmotif{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+  .bgmotif .glow{position:absolute;left:50%;top:-300px;width:1200px;height:600px;transform:translateX(-50%);
+    background:radial-gradient(48% 55% at 50% 42%,rgba(14,124,90,.12),transparent 70%)}
+  .bgmotif svg{position:absolute;left:0;right:0;top:0;width:100%;height:560px}
+  .bgmotif .grain{position:absolute;inset:0;opacity:.04;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
   .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
   a{color:inherit;text-decoration:none}
   .serif{font-family:Fraunces,Georgia,serif}
@@ -140,6 +146,28 @@
 </style>
 </head>
 <body>
+
+<div class="bgmotif" aria-hidden="true">
+  <div class="glow"></div>
+  <svg viewBox="0 0 1440 560" preserveAspectRatio="xMidYMid slice" fill="none">
+    <defs>
+      <linearGradient id="nav-area" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#0e7c5a" stop-opacity="0.10"/>
+        <stop offset="1" stop-color="#0e7c5a" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="nav-line" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#0e7c5a" stop-opacity="0"/>
+        <stop offset="0.12" stop-color="#0e7c5a" stop-opacity="0.28"/>
+        <stop offset="0.75" stop-color="#13a06f" stop-opacity="0.42"/>
+        <stop offset="1" stop-color="#34d399" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path d="M0,470 C150,452 240,486 360,440 C480,394 560,420 680,356 C800,292 900,322 1040,260 C1160,206 1300,224 1440,168 L1440,560 L0,560 Z" fill="url(#nav-area)"/>
+    <path d="M0,470 C150,452 240,486 360,440 C480,394 560,420 680,356 C800,292 900,322 1040,260 C1160,206 1300,224 1440,168" stroke="url(#nav-line)" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M0,520 C180,508 260,528 420,492 C600,452 700,470 860,418 C1020,366 1180,382 1440,320" stroke="#0e7c5a" stroke-opacity="0.08" stroke-width="1.5"/>
+  </svg>
+  <div class="grain"></div>
+</div>
 
 <nav>
   <div class="wrap nav-in">

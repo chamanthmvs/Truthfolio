@@ -29,22 +29,25 @@
   box-sizing: border-box;
 }
 
+html {
+  /* paper canvas lives on <html> so the fixed background motif (a body child at a
+     negative z-index) paints above it but behind all page content. */
+  background: var(--bg);
+}
+
 html,
 body {
   padding: 0;
   margin: 0;
-  background: var(--bg);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 body {
-  /* a whisper of emerald at the top — barely there, just enough to feel designed */
-  background-image:
-    radial-gradient(1200px 520px at 50% -340px, rgba(14, 124, 90, 0.06), transparent 70%);
-  background-repeat: no-repeat;
+  background: transparent;
   min-height: 100vh;
+  position: relative;
 }
 
 ::selection {
