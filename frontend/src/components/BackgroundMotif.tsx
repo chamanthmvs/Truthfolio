@@ -12,7 +12,7 @@ export default function BackgroundMotif() {
         className="absolute left-1/2 top-[-300px] h-[600px] w-[1200px] -translate-x-1/2"
         style={{
           background:
-            "radial-gradient(48% 55% at 50% 42%, rgba(14,124,90,0.11), transparent 70%)",
+            "radial-gradient(48% 55% at 50% 42%, rgba(14,124,90,0.06), transparent 70%)",
         }}
       />
 
@@ -25,13 +25,13 @@ export default function BackgroundMotif() {
       >
         <defs>
           <linearGradient id="nav-area" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#0e7c5a" stopOpacity="0.10" />
+            <stop offset="0" stopColor="#0e7c5a" stopOpacity="0.055" />
             <stop offset="1" stopColor="#0e7c5a" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="nav-line" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0" stopColor="#0e7c5a" stopOpacity="0" />
-            <stop offset="0.12" stopColor="#0e7c5a" stopOpacity="0.28" />
-            <stop offset="0.75" stopColor="#13a06f" stopOpacity="0.42" />
+            <stop offset="0.12" stopColor="#0e7c5a" stopOpacity="0.15" />
+            <stop offset="0.75" stopColor="#13a06f" stopOpacity="0.22" />
             <stop offset="1" stopColor="#34d399" stopOpacity="0" />
           </linearGradient>
         </defs>
@@ -52,14 +52,14 @@ export default function BackgroundMotif() {
         <path
           d="M0,520 C180,508 260,528 420,492 C600,452 700,470 860,418 C1020,366 1180,382 1440,320"
           stroke="#0e7c5a"
-          strokeOpacity="0.08"
+          strokeOpacity="0.045"
           strokeWidth="1.5"
         />
       </svg>
 
       {/* fine grain for premium texture */}
       <div
-        className="absolute inset-0 opacity-[0.04] mix-blend-multiply"
+        className="absolute inset-0 opacity-[0.025] mix-blend-multiply"
         style={{
           backgroundImage:
             "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
