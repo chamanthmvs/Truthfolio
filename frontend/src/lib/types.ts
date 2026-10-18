@@ -132,6 +132,18 @@ export interface DraftHolding {
   avg_nav: number;
 }
 
+export interface Insight {
+  title: string;
+  detail: string;
+  category: string;
+  tone: Tone;
+}
+
+export interface InsightsResponse {
+  insights: Insight[];
+  llm_used: boolean;
+}
+
 export interface Footnote {
   n: number;
   title: string;

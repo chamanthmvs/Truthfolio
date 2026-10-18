@@ -68,6 +68,18 @@ async def gather_research(state: AgentState) -> AgentState:
     }
 
 
+async def generate_insights(state: AgentState) -> AgentState:
+    """Synthesise structured insight cards from the gathered evidence (LLM, cached)."""
+    from app.agent import insights as insights_mod
+
+    result = await insights_mod.generate_fund_insights(dict(state))
+    steps = state.get("steps", []) + [
+        f"Generated {len(result['insights'])} insight card(s)"
+        f"{' with ' + ('AI' if result['llm_used'] else 'a deterministic fallback')}."
+    ]
+    return {"insights": result["insights"], "insights_llm_used": result["llm_used"], "steps": steps}
+
+
 async def build_evidence(state: AgentState) -> AgentState:
     computed = verdict_engine.build_evidence(state["metrics"], state["peers"])
     researched = state.get("research_evidence", []) or []

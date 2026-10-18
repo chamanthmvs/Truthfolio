@@ -46,3 +46,16 @@ async def research_fund(
         amc=amc,
         category=category,
     )
+
+
+async def insights_fund(
+    scheme_code: str, scheme_name: str, category: str = "",
+) -> AgentState:
+    """Compute the deterministic review (no narrate) then synthesise insight cards."""
+    return await run_task(
+        "fund_insights",
+        scheme_code=scheme_code,
+        scheme_name=scheme_name,
+        base_name=scheme_name,
+        category=category,
+    )

@@ -8,6 +8,7 @@ import FundReview from "@/components/FundReview";
 import PortfolioBuilder from "@/components/PortfolioBuilder";
 import PortfolioOverview from "@/components/PortfolioOverview";
 import HoldingsTable from "@/components/HoldingsTable";
+import InsightsPanel from "@/components/InsightsPanel";
 import { streamReview, streamPortfolio } from "@/lib/api";
 import type {
   DraftHolding,
@@ -205,6 +206,7 @@ function PortfolioFlow() {
       {result && (
         <>
           <PortfolioOverview summary={result.summary} />
+          <InsightsPanel mode="portfolio" summary={result.summary} holdings={result.holdings} />
           <HoldingsTable holdings={result.holdings} onOpen={setDrill} />
           {result.errors > 0 && (
             <p className="text-center text-xs text-ink-faint">

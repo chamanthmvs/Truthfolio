@@ -35,6 +35,9 @@ PLANS: dict[str, list[str]] = {
         "build_evidence", "synthesise", "narrate",
     ],
     "research_only": ["gather_research"],
+    "fund_insights": [
+        "gather_quant", "gather_peers", "build_evidence", "synthesise", "generate_insights",
+    ],
 }
 
 _SPECIALISTS = {
@@ -44,6 +47,7 @@ _SPECIALISTS = {
     "build_evidence": nodes.build_evidence,
     "synthesise": nodes.synthesise,
     "narrate": nodes.narrate,
+    "generate_insights": nodes.generate_insights,
 }
 
 

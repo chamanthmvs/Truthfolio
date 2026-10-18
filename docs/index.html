@@ -316,6 +316,7 @@
         <li>🧭 <span><b>Supervisor / orchestrator</b> (LangGraph) coordinates focused specialist agents — quant, research, verdict, narrator — one at a time, plan-driven and auditable.</span></li>
         <li>📈 <span><b>Deterministic quant core</b> — returns, rolling returns, volatility, Sharpe, Sortino, drawdown — computed with NumPy/Pandas from real NAV data.</span></li>
         <li>🔎 <span><b>On-demand web research</b> (Tavily) → source-reliability gate → LLM extracts <b>cited</b> claims with inline <span class="mono">[n]</span> footnotes. Strict credit controls.</span></li>
+        <li>💡 <span><b>Insights specialist</b> — a grounded "so what?" synthesis (big picture, strengths, honest watch-outs) for a fund or a whole portfolio. On-demand and cached.</span></li>
         <li>🎛️ <span><b>Transparent weighted scoring</b> turns metrics + peer ranks into a 0–100 health score and the Continue / Stop / Shift verdict.</span></li>
         <li>🔌 <span><b>Provider-switchable LLM</b> (Claude via Anthropic, or Groq) behind one factory — the whole app switches with a single env var. It only explains; it never overrules the score.</span></li>
         <li>🖥️ <span><b>Next.js + TypeScript</b> frontend streaming the reasoning live over Server-Sent Events. Core runs on <b>free public data</b> (AMFI + mfapi).</span></li>
@@ -412,6 +413,10 @@ sequenceDiagram
   <div class="ver">
     <span class="badge b-done">V3 ✓</span>
     <div><h3>Web research + multi-agent</h3><p>On-demand web research that cites its sources, a supervisor-orchestrated multi-agent engine, and a provider-switchable LLM (Claude or Groq) — all with strict credit controls.</p></div>
+  </div>
+  <div class="ver">
+    <span class="badge b-done">V3.1 ✓</span>
+    <div><h3>Insights</h3><p>A grounded "so what?" synthesis — big picture, real strengths, and the honest watch-outs — for any fund or your whole portfolio, in plain English.</p></div>
   </div>
   <div class="ver">
     <span class="badge b-prog">Next</span>

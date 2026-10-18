@@ -315,6 +315,7 @@ backend/
       research.py          Web-research specialist (search → appraise → cite)
       appraisal.py         Source-reliability gate (web + computed)
       citations.py         Citation registry + inline [n] marker parsing
+      insights.py          Insights specialist (fund + portfolio, cached)
       llm.py               LLM narrative (evidence-grounded)
       llm_provider.py      Provider factory (Claude / Groq switch)
       portfolio.py         Portfolio orchestrator (per-fund fan-out)
@@ -454,6 +455,7 @@ Plans (`supervisor.PLANS`):
 - `fund_review` → quant → peers → evidence → verdict → narrate (free, no web)
 - `fund_review_deep` → inserts **research** before evidence
 - `research_only` → research specialist alone (the on-demand, credit-spending path)
+- `fund_insights` → quant → peers → evidence → verdict → **generate_insights** (no narrate)
 
 `graph.py` exposes the stable entry points the API uses: `review_fund(...)`,
 `research_fund(...)`, and `build_graph` (the compiled supervisor, used by SSE streaming). New
@@ -493,6 +495,16 @@ Anthropic, or an open model via Groq) — the whole project switches with one `L
 env var. `llm.py` writes the narrative given **only** the computed evidence + the
 already-decided verdict; the system prompt forbids inventing numbers or overriding the
 verdict and mandates child-level clarity. It explains the arithmetic; it never changes it.
+
+### 10.8 Insights specialist — `agent/insights.py`
+
+The "so what?" layer: synthesises the gathered evidence into 4–6 **structured insight cards**
+(title, plain detail, category, tone) — big picture, genuine strengths, the biggest honest
+watch-out, and what to monitor. Grounded strictly in the provided data; the LLM interprets,
+never invents. Works for a single fund (`fund_insights` plan) and for a whole portfolio
+(`generate_portfolio_insights` over the summary). **On-demand** (a button, not automatic) and
+**cached 12h per subject**, so it never silently spends tokens and is instant on repeat views.
+Degrades to deterministic insights from the evidence ledger without an LLM key.
 
 ---
 
@@ -587,6 +599,8 @@ Base path `/api`. Interactive docs at `/docs` (Swagger) and `/redoc`.
 | POST   | `/portfolio`            | Whole-portfolio analysis (synchronous).            |
 | POST   | `/portfolio/stream`     | Portfolio as SSE (`start` → `holding`* → `result`).|
 | GET    | `/research?scheme_code=`| On-demand web research for one fund (spends credits; cited claims + footnotes + budget). |
+| GET    | `/insights?scheme_code=`| Structured insight cards for one fund (LLM, cached; deterministic fallback). |
+| POST   | `/insights/portfolio`   | Portfolio-level insight cards from a computed summary + brief holdings. |
 
 ### `GET /search`
 ```jsonc
@@ -777,8 +791,14 @@ On-demand web-research specialist (manager, cost, mandate, size, regulatory) thr
 source-appraisal gate with inline citations; supervisor/orchestrator architecture; LLM layer
 switchable between Claude (Anthropic) and Groq; strict Tavily credit controls.
 
+### ✅ V3 (part 2) — Insights
+On-demand, cached **insight cards** for a fund and for a whole portfolio: a grounded "so what?"
+synthesis (big picture, strengths, biggest watch-out, what to monitor) as an insights
+specialist under the supervisor.
+
 ### Next
-- **Insights tab** — per-fund & per-portfolio narrative insights over the gathered evidence.
+- **CAS statement import** — upload a CAMS/KFintech CAS; parse active holdings by ISIN
+  (in-memory, never stored); warn >30d / reject >90d; pre-fill the builder for review.
 - **Market Pulse tab** — overall Indian market + fund-relevant sentiment, triggers, cited
   projections (attributed, never presented as Truthfolio's own forecast).
 - True stock-level overlap; benchmark-index comparison; broader asset coverage; saved

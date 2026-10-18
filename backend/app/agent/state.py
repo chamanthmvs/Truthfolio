@@ -48,6 +48,8 @@ class AgentState(TypedDict, total=False):
     research_evidence: list[EvidenceItem]
     footnotes: list[dict[str, Any]]  # numbered citations for web-sourced claims
     research_used: bool
+    insights: list[dict[str, Any]]  # structured insight cards
+    insights_llm_used: bool
 
     # --- outputs ---
     health_score: float  # 0..100 transparent composite

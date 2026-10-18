@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Body, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from app.agent.graph import review_fund
@@ -103,6 +103,37 @@ async def research(scheme_code: str = Query(...)):
         "footnotes": state.get("footnotes", []),
         "budget": websearch.budget_status(),
     }
+
+
+@router.get("/insights")
+async def insights(scheme_code: str = Query(...)):
+    """Structured insight cards for one fund (LLM-synthesised, cached; deterministic fallback)."""
+    from app.agent.graph import insights_fund
+
+    master = await amfi.get_master()
+    scheme = master.get(scheme_code)
+    if scheme is None:
+        raise HTTPException(404, f"Scheme {scheme_code} not found.")
+    state = await insights_fund(
+        scheme_code=scheme.code, scheme_name=scheme.name, category=scheme.category,
+    )
+    return {
+        "insights": state.get("insights", []),
+        "llm_used": state.get("insights_llm_used", False),
+    }
+
+
+@router.post("/insights/portfolio")
+async def insights_portfolio(payload: dict = Body(...)):
+    """Portfolio-level insight cards from an already-computed summary (+ brief holdings)."""
+    from app.agent import insights as insights_mod
+
+    summary = payload.get("summary") or {}
+    holdings = payload.get("holdings") or []
+    if not summary:
+        raise HTTPException(422, "A portfolio summary is required.")
+    result = await insights_mod.generate_portfolio_insights(summary, holdings)
+    return result
 
 
 @router.post("/portfolio")

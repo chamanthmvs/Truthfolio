@@ -8,6 +8,7 @@ import PeerBars from "./PeerBars";
 import RollingReturns from "./RollingReturns";
 import EvidenceLedger from "./EvidenceLedger";
 import ResearchPanel from "./ResearchPanel";
+import InsightsPanel from "./InsightsPanel";
 import Markdown from "./Markdown";
 
 export default function FundReview({
@@ -24,6 +25,8 @@ export default function FundReview({
       {personal && <PersonalStrip personal={personal} />}
 
       <Narrative review={review} />
+
+      <InsightsPanel mode="fund" schemeCode={review.scheme_code} />
 
       <Panel title="The numbers — explained like you're new to this" hint="Tap ⓘ for more depth">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

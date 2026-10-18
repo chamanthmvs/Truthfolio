@@ -102,7 +102,7 @@ reference, and extension points.
 
 - ✅ **V1** — single-fund review
 - ✅ **V2** — whole-portfolio review
-- ✅ **V3** — web research with citations · supervisor multi-agent · provider-switchable LLM
+- ✅ **V3** — web research with citations · supervisor multi-agent · provider-switchable LLM · insights
 - 🚧 **Next** — *in progress… loading.*
 
 ## Disclaimer

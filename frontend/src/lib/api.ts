@@ -2,7 +2,9 @@ import type {
   DraftHolding,
   EvidenceItem,
   Footnote,
+  InsightsResponse,
   PortfolioResponse,
+  PortfolioSummary,
   ReviewResponse,
   SchemeHit,
 } from "./types";
@@ -93,6 +95,27 @@ export async function streamReview(
       }
     }
   }
+}
+
+/** Insight cards for one fund (LLM-synthesised, cached; deterministic fallback). */
+export async function fetchFundInsights(schemeCode: string): Promise<InsightsResponse> {
+  const res = await fetch(`${API_BASE}/insights?scheme_code=${encodeURIComponent(schemeCode)}`);
+  if (!res.ok) throw new Error(`insights failed: ${res.status}`);
+  return res.json();
+}
+
+/** Portfolio-level insight cards from an already-computed summary + brief holdings. */
+export async function fetchPortfolioInsights(
+  summary: PortfolioSummary,
+  holdings: { scheme_name: string; category: string; weight: number; verdict: string; return_pct: number }[],
+): Promise<InsightsResponse> {
+  const res = await fetch(`${API_BASE}/insights/portfolio`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ summary, holdings }),
+  });
+  if (!res.ok) throw new Error(`insights failed: ${res.status}`);
+  return res.json();
 }
 
 export interface PortfolioHandlers {
