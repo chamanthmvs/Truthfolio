@@ -8,6 +8,7 @@ import ThinkingStream from "@/components/ThinkingStream";
 import FundReview from "@/components/FundReview";
 import PortfolioBuilder from "@/components/PortfolioBuilder";
 import PortfolioOverview from "@/components/PortfolioOverview";
+import PortfolioChat from "@/components/PortfolioChat";
 import HoldingsTable from "@/components/HoldingsTable";
 import InsightsPanel from "@/components/InsightsPanel";
 import MarketPulseView from "@/components/MarketPulseView";
@@ -181,24 +182,6 @@ function PortfolioFlow() {
     setPhase("idle"); setResult(null); setError(""); setDrill(null);
   };
 
-  // Drill-down view: reuse the full fund review, with the personal position.
-  if (drill) {
-    return (
-      <div className="space-y-6">
-        <button
-          onClick={() => setDrill(null)}
-          className="flex items-center gap-1.5 text-sm text-ink-dim transition hover:text-ink"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Back to portfolio
-        </button>
-        <FundReview review={drill.review} personal={drill.personal} />
-      </div>
-    );
-  }
-
   if (phase === "idle") {
     return (
       <div>
@@ -215,6 +198,22 @@ function PortfolioFlow() {
 
   return (
     <div className="space-y-6">
+      {drill && (
+        <div className="space-y-6">
+          <button
+            onClick={() => setDrill(null)}
+            className="flex items-center gap-1.5 text-sm text-ink-dim transition hover:text-ink"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back to portfolio
+          </button>
+          <FundReview review={drill.review} personal={drill.personal} />
+        </div>
+      )}
+
+      <div hidden={Boolean(drill)} className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="text-sm text-ink-faint">Your portfolio</div>
         <NewButton onClick={reset} label="Edit holdings" />
@@ -229,6 +228,7 @@ function PortfolioFlow() {
         <>
           <PortfolioOverview summary={result.summary} />
           <InsightsPanel mode="portfolio" summary={result.summary} holdings={result.holdings} />
+          <PortfolioChat summary={result.summary} holdings={result.holdings} />
           <HoldingsTable holdings={result.holdings} onOpen={setDrill} />
           {result.errors > 0 && (
             <p className="text-center text-xs text-ink-faint">
@@ -237,6 +237,7 @@ function PortfolioFlow() {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

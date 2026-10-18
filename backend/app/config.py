@@ -70,6 +70,7 @@ class Settings(BaseSettings):
     search_max_results: int = 4
     search_ttl_hours: int = 72  # fund facts change slowly — cache hard to avoid re-spending
     search_daily_cap: int = 60  # safety valve: max Tavily network calls per day, app-wide
+    portfolio_chat_daily_cap: int = 100  # in-process cap on LLM-backed portfolio questions
 
     @property
     def is_groq(self) -> bool:

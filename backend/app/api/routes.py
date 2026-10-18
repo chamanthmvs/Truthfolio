@@ -10,10 +10,17 @@ from fastapi.responses import StreamingResponse
 
 from app.agent.graph import review_fund
 from app.agent.portfolio import HoldingInput, analyze_holding
+from app.agent.portfolio_chat import (
+    PortfolioChatError,
+    answer_portfolio_question,
+    reserve_daily_chat_request,
+)
 from app.analysis import portfolio as agg
 from app.analysis.review_view import assemble_review
 from app.data import amfi
 from app.models.schemas import (
+    PortfolioChatRequest,
+    PortfolioChatResponse,
     PortfolioRequest,
     ReviewRequest,
     ReviewResponse,
@@ -143,6 +150,30 @@ async def insights_portfolio(payload: dict = Body(...)):
         raise HTTPException(422, "A portfolio summary is required.")
     result = await insights_mod.generate_portfolio_insights(summary, holdings)
     return result
+
+
+@router.post("/portfolio/chat", response_model=PortfolioChatResponse)
+async def portfolio_chat(payload: PortfolioChatRequest):
+    """Answer a short, on-demand question using only the submitted analysis context."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not settings.llm_enabled:
+        raise HTTPException(
+            503,
+            "Portfolio chat is unavailable because no supported AI provider is configured.",
+        )
+    if not reserve_daily_chat_request():
+        raise HTTPException(
+            429,
+            "The portfolio assistant has reached its daily request limit. "
+            "Please try again tomorrow.",
+        )
+    try:
+        answer = await answer_portfolio_question(payload)
+    except PortfolioChatError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    return {"answer": answer}
 
 
 @router.post("/portfolio/import")

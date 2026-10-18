@@ -81,7 +81,8 @@ The implementation is organized around three product principles:
 ### What the LLM can and cannot do
 
 - It **can** write the narrative around a result whose verdict has already been computed.
-- It **can** turn existing fund or portfolio data into optional insight cards.
+- It **can** turn existing fund or portfolio data into optional insight cards or answer
+  bounded, on-demand questions about the analyzed portfolio.
 - It **can** extract cited claims from appraised web-search results for the explicit research
   experience.
 - It **does not** calculate NAV returns, set the deterministic fund verdict, or supply missing
@@ -136,7 +137,7 @@ qualitative fund attribute, such as manager changes or mandate drift.
 | Quant | `backend/app/analysis/metrics.py`, `peers.py` | NAV-derived metrics and peer percentile ranks. |
 | Portfolio | `backend/app/agent/portfolio.py`, `backend/app/analysis/portfolio.py` | Per-holding review, personal values, and portfolio aggregation. |
 | Sources | `backend/app/data/amfi.py`, `navapi.py`, `websearch.py`, `cache.py` | External data access, normalization, caching, and search budget. |
-| Optional synthesis | `backend/app/agent/research.py`, `appraisal.py`, `citations.py`, `insights.py`, `market.py`, `llm.py`, `llm_provider.py` | Research, source scoring, citations, insight cards, Market Pulse, and model access. |
+| Optional synthesis | `backend/app/agent/research.py`, `appraisal.py`, `citations.py`, `insights.py`, `market.py`, `portfolio_chat.py`, `llm.py`, `llm_provider.py` | Research, source scoring, citations, insight cards, portfolio Q&A, Market Pulse, and model access. |
 | CAS | `backend/app/data/cas_import.py` | Parse a statement and match active holdings to AMFI schemes. |
 | Shared review output | `backend/app/analysis/review_view.py` | Canonical response assembler shared by single reviews and portfolio holdings. |
 
@@ -147,7 +148,7 @@ qualitative fund attribute, such as manager changes or mandate drift.
 | App shell and flows | `frontend/src/app/page.tsx` | Three tabs and the fund / portfolio phase flows. |
 | Search | `frontend/src/components/SearchBar.tsx` | Debounced scheme typeahead and keyboard selection. |
 | Fund review | `FundReview.tsx`, `VerdictCard.tsx`, `MetricCard.tsx`, `PeerBars.tsx`, `RollingReturns.tsx`, `EvidenceLedger.tsx` | Explain and inspect a complete review. |
-| Portfolio | `PortfolioBuilder.tsx`, `PortfolioOverview.tsx`, `HoldingsTable.tsx` | Import or enter holdings, inspect aggregate results, drill into a fund. |
+| Portfolio | `PortfolioBuilder.tsx`, `PortfolioOverview.tsx`, `PortfolioChat.tsx`, `HoldingsTable.tsx` | Import or enter holdings, inspect aggregate results, ask bounded follow-ups, drill into a fund. |
 | Optional features | `ResearchPanel.tsx`, `InsightsPanel.tsx`, `MarketPulseView.tsx`, `Citations.tsx` | On-demand content and source links. |
 | Transport and models | `frontend/src/lib/api.ts`, `types.ts`, `format.ts` | Fetch/SSE transport, shared data contracts, display formatting. |
 | Visual system | `frontend/src/app/globals.css`, `BackgroundMotif.tsx`, Tailwind config | Design tokens, backgrounds, typography, and reusable visual utilities. |
@@ -295,6 +296,7 @@ The backend reads a local `backend/.env` when present. The frontend API URL is
 | `HPR_SEARCH_MAX_RESULTS` | `4` | Search results requested per query. |
 | `HPR_SEARCH_TTL_HOURS` | `72` | Search-result cache lifetime. |
 | `HPR_SEARCH_DAILY_CAP` | `60` | Per-process daily cap on Tavily calls. |
+| `HPR_PORTFOLIO_CHAT_DAILY_CAP` | `100` | Per-process daily cap on portfolio chat LLM requests. |
 | `HPR_CAS_WARN_DAYS` | `30` | Age beyond which an imported statement warns. |
 | `HPR_CAS_REJECT_DAYS` | `90` | Age beyond which an imported statement is rejected. |
 | `HPR_CAS_MAX_BYTES` | `15,000,000` | Maximum uploaded statement size. |
@@ -481,6 +483,58 @@ Portfolio aggregation derives:
 The result contains only successfully analysed holdings and an `errors` count for omitted
 ones. If none can be analysed, the route returns HTTP 422.
 
+### 8.4 Optional portfolio Q&A
+
+After analysis, the portfolio page offers an optional chat panel. It does not re-run fund
+analysis or replace the overview, insights, evidence, or drill-down. A user can ask up to five
+questions in the current browser view. The frontend sends the current computed summary,
+bounded per-holding evidence and metrics, and the successful conversation turns to
+`POST /api/portfolio/chat`. The question and context are not added to a saved portfolio or
+persisted by this feature.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI as PortfolioChat
+    participant API as FastAPI
+    participant Guard as Request validation and daily cap
+    participant Chat as Portfolio chat service
+    participant LLM as Configured LLM provider
+
+    User->>UI: Submit a follow-up
+    UI->>API: POST /api/portfolio/chat (analysis + conversation)
+    API->>Guard: Validate bounds, message order, provider, and budget
+    Guard-->>API: Accept or return 422 / 429 / 503
+    API->>Chat: Build constrained prompt from supplied analysis only
+    Chat->>LLM: System rules + JSON data (no tools or web search)
+    LLM-->>Chat: Plain-text explanation
+    Chat-->>API: Non-empty answer
+    API-->>UI: { answer }
+    UI-->>User: Render the answer and append it to in-memory chat
+```
+
+The service is deliberately evidence-bound: it must not invent benchmark or underlying-stock
+overlap data, fill gaps with external research, or direct a user to buy, sell, or switch a
+specific fund. A question about moving out of a fund should be answered by explaining the
+available verdict and evidence, acknowledging missing goals and circumstances, and directing
+the user to a SEBI-registered investment adviser for personalised decisions. Chat is disabled
+with HTTP 503 when the configured LLM provider has no key. Known provider API failures and
+empty model responses map to HTTP 502; unexpected errors are left to FastAPI's standard
+server-error handling.
+
+Requests are constrained to 40 holdings, 50 KB of serialized analysis/context, at most nine
+alternating conversation messages (five user questions), 600 characters per user question,
+2,000 characters per assistant answer, and 400 output tokens. The default daily cap is 100
+calls per application process; failed model requests consume a slot. This is an in-memory
+operational cost guard, not a user-level quota:
+it resets daily and is independent per worker/instance. Deployments needing a durable or
+cross-instance quota must use a shared rate-limit store. The user is told that question
+submissions send their current portfolio analysis and chat to the configured AI provider;
+the provider's retention and processing terms apply. Before sending, the frontend converts
+fractional returns, weights, and metric percentages to percentage points and sends monetary
+amounts as INR, so the model receives explicit, human-readable units.
+
 ---
 
 ## 9. CAS import and privacy
@@ -571,7 +625,17 @@ Projections are represented as the named source's view, not Truthfolio's predict
 both services or without usable reliable sources, the API returns an explicit unavailable
 state rather than fabricating a pulse.
 
-### 10.4 Source appraisal and citations
+### 10.4 Portfolio Q&A
+
+`POST /api/portfolio/chat` accepts a validated portfolio summary, per-holding evidence, and a
+bounded alternating conversation. It sends only those supplied values to the configured
+provider, with no tools, web search, or transcript cache. Its limits, advice boundary,
+disclosure, and in-process daily cost cap are described in [Portfolio review, step by
+step](#84-optional-portfolio-qa). If no model key is configured, it returns HTTP 503; provider
+API failures and empty responses return HTTP 502, while unexpected errors use the standard
+HTTP 500 path.
+
+### 10.5 Source appraisal and citations
 
 `agent/appraisal.py` scores web sources from transparent criteria such as domain authority,
 recency, and corroboration. The result includes reliability reasons for display. Computed
@@ -711,6 +775,7 @@ The API prefix is `/api`. FastAPI's generated docs are available at `/docs` and 
 | `GET` | `/research` | `scheme_code` query | On-demand cited fund research and search budget. |
 | `GET` | `/insights` | `scheme_code` query | Fund insight cards and whether an LLM was used. |
 | `POST` | `/insights/portfolio` | JSON summary and brief holdings | Portfolio insight cards. |
+| `POST` | `/portfolio/chat` | Computed summary, bounded holdings, up to five user questions | Evidence-bound answer; 503 without an LLM, 429 at the process daily cap. |
 | `GET` | `/market-pulse` | optional `focus` query | Optional cited Market Pulse and budget. |
 
 ### Request model notes
@@ -718,6 +783,9 @@ The API prefix is `/api`. FastAPI's generated docs are available at `/docs` and 
 - `ReviewRequest`: required `scheme_code`; optional non-negative `units` and `invested_amount`.
 - `PortfolioRequest`: 1–40 holdings; each requires an official scheme code, `units > 0`, and
   `avg_nav > 0`.
+- `PortfolioChatRequest`: 1–40 analyzed holdings; up to nine alternating user/assistant
+  messages ending with a user question; 600 characters per user message, 2,000 per assistant
+  message, and a 50 KB serialized request limit. The interface exposes five questions per analysis.
 - Search returns `query` plus scheme rows with `code`, `name`, `amc`, `category`, and
   `scheme_type`.
 
@@ -775,7 +843,8 @@ holding fails, the stream emits an `error` and does not emit `result`.
 and composes three feature areas:
 
 - **Review a fund** — typeahead selection → stream → reusable `FundReview`.
-- **My portfolio** — builder/import → stream → overview and holdings → reusable fund drill-down.
+- **My portfolio** — builder/import → stream → overview, insights, optional five-question
+  analysis chat, holdings, and reusable fund drill-down.
 - **Market Pulse** — explicit fetch → cited market snapshot or an explicit unavailable state.
 
 Each fund/portfolio flow uses a local phase (`idle`, `running`, `done`, `error`) and an
@@ -787,7 +856,8 @@ and optional-panel state.
 
 `frontend/src/lib/api.ts` owns JSON fetches and manual SSE decoding. Fund streams handle
 `step`, `result`, and `error`; portfolio streams handle `start`, `holding`, `result`, and
-`error`. The UI uses progress events rather than waiting behind a generic spinner.
+`error`. Portfolio chat uses a typed JSON request/response and never persists its local
+conversation. The UI uses progress events rather than waiting behind a generic spinner.
 
 ### Review components
 
@@ -939,6 +1009,7 @@ Never commit `.env` files or API credentials.
   plain-language explainers.
 - Fund and portfolio SSE progress.
 - Portfolio analysis from user-entered holdings.
+- Bounded, on-demand portfolio Q&A grounded in the analysis currently shown.
 - CAMS/KFintech CAS import, active-holding matching, and freshness handling.
 - On-demand fund research with source appraisal and citations.
 - On-demand fund/portfolio insight cards.

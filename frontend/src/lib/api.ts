@@ -4,6 +4,7 @@ import type {
   Footnote,
   ImportResult,
   InsightsResponse,
+  PortfolioChatMessage,
   PortfolioResponse,
   PortfolioSummary,
   ReviewResponse,
@@ -145,6 +146,75 @@ export async function fetchPortfolioInsights(
   });
   if (!res.ok) throw new Error(`insights failed: ${res.status}`);
   return res.json();
+}
+
+/** Ask one bounded follow-up question about an already-computed portfolio. */
+export async function askPortfolioQuestion(
+  summary: PortfolioSummary,
+  holdings: PortfolioResponse["holdings"],
+  messages: PortfolioChatMessage[],
+): Promise<string> {
+  const context = {
+    total_invested: summary.total_invested,
+    total_current: summary.total_current,
+    total_gain: summary.total_gain,
+    overall_return_pct: summary.overall_return_pct * 100,
+    health_score: summary.health_score,
+    verdict: summary.verdict,
+    diversification: summary.diversification,
+    top_holding_pct: summary.top_holding_pct * 100,
+    top_category: summary.top_category,
+    top_category_pct: summary.top_category_pct * 100,
+    category_mix: summary.category_mix
+      .slice(0, 20)
+      .map(({ category, pct }) => ({ category, pct: pct * 100 })),
+    headline: summary.headline,
+    action_items: summary.action_items.slice(0, 10),
+    caveats: summary.caveats.slice(0, 10),
+  };
+  const analyzedHoldings = holdings.map(({ review, personal, weight }) => ({
+    scheme_name: review.scheme_name,
+    category: review.category,
+    verdict: review.verdict,
+    health_score: review.health_score,
+    weight: weight * 100,
+    invested: personal.invested,
+    current_value: personal.current_value,
+    gain: personal.gain,
+    return_pct: personal.return_pct * 100,
+    headline: review.headline.slice(0, 500),
+    metrics: review.metrics.slice(0, 12).map(({ label, value, unit }) => ({
+      label,
+      value: value === null ? null : unit === "%" ? value * 100 : value,
+      unit,
+    })),
+    evidence: review.evidence.slice(0, 8).map(({ claim }) => claim.slice(0, 400)),
+    peer_summary: review.peers.ranks
+      .filter((rank) => rank.percentile !== null)
+      .slice(0, 4)
+      .map((rank) => `${rank.label}: ${Math.round((rank.percentile ?? 0) * 100)}th percentile`)
+      .join("; "),
+  }));
+  const res = await fetch(`${API_BASE}/portfolio/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ context, holdings: analyzedHoldings, messages }),
+  });
+  if (!res.ok) {
+    let message = `Portfolio chat failed (${res.status}).`;
+    try {
+      const body = await res.json();
+      if (typeof body.detail === "string") message = body.detail;
+    } catch {
+      // Preserve the status-based error when the server response is not JSON.
+    }
+    throw new Error(message);
+  }
+  const body = await res.json();
+  if (typeof body.answer !== "string" || !body.answer.trim()) {
+    throw new Error("The portfolio assistant returned an invalid response.");
+  }
+  return body.answer;
 }
 
 export interface PortfolioHandlers {

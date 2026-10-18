@@ -125,6 +125,11 @@ export interface PortfolioResponse {
   errors: number;
 }
 
+export interface PortfolioChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 /** A holding being assembled in the builder, before analysis. */
 export interface DraftHolding {
   scheme: SchemeHit;
