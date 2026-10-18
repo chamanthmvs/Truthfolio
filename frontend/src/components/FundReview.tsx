@@ -8,7 +8,7 @@ import PeerBars from "./PeerBars";
 import RollingReturns from "./RollingReturns";
 import EvidenceLedger from "./EvidenceLedger";
 import ResearchPanel from "./ResearchPanel";
-import { CitedText } from "./Citations";
+import Markdown from "./Markdown";
 
 export default function FundReview({
   review,
@@ -110,7 +110,6 @@ function Panel({
 }
 
 function Narrative({ review }: { review: ReviewResponse }) {
-  const paras = review.narrative.split("\n").filter((l) => l.trim().length > 0);
   return (
     <section className="glass rounded-2xl p-5 sm:p-6">
       <div className="mb-3 flex items-center gap-2">
@@ -121,16 +120,7 @@ function Narrative({ review }: { review: ReviewResponse }) {
           {review.llm_used ? "AI-written, evidence-grounded" : "Deterministic summary"}
         </span>
       </div>
-      <div className="space-y-2 text-sm leading-relaxed text-ink-dim">
-        {paras.map((p, i) => {
-          const bullet = p.trim().startsWith("•");
-          return (
-            <p key={i} className={bullet ? "pl-4 text-ink" : i === 0 ? "font-medium text-ink" : ""}>
-              <CitedText text={p} />
-            </p>
-          );
-        })}
-      </div>
+      <Markdown text={review.narrative} />
     </section>
   );
 }

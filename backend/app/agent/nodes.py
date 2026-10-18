@@ -114,7 +114,7 @@ def _deterministic_narrative(state: AgentState) -> dict:
         "Inconclusive": f"Evidence on {name} is too thin for a confident call.",
     }[verdict]
 
-    lines = [headline, ""]
+    lines = [f"**{headline}**", ""]
     lines.append(
         f"This assessment is built from {len(state.get('evidence', []))} pieces of evidence, "
         f"every one computed directly from official NAV data (not estimated)."
@@ -125,12 +125,12 @@ def _deterministic_narrative(state: AgentState) -> dict:
         )
     if pos:
         lines.append("")
-        lines.append("What's working:")
-        lines += [f"  • {e['claim']}" for e in pos]
+        lines.append("**What's working**")
+        lines += [f"- {e['claim']}" for e in pos]
     if neg:
         lines.append("")
-        lines.append("What's concerning:")
-        lines += [f"  • {e['claim']}" for e in neg]
+        lines.append("**What's concerning**")
+        lines += [f"- {e['claim']}" for e in neg]
 
     caveats = [
         "This is analytical, educational output — not personalised investment advice.",
