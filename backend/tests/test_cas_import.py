@@ -7,9 +7,12 @@ deterministically without a real (PII-bearing) CAS file.
 from __future__ import annotations
 
 from datetime import date, timedelta
+from types import SimpleNamespace
 
 from casparser import CASData
+from fastapi import HTTPException
 
+from app.api import routes
 from app.data import cas_import
 from app.data.amfi import Scheme, SchemeMaster
 
@@ -148,3 +151,34 @@ def test_not_a_cas(monkeypatch):
     monkeypatch.setattr(cas_import, "read_cas_pdf", boom)
     res = cas_import.import_cas(b"x", "", _master())
     assert res["status"] == "error" and res["reason"] == "not_cas"
+
+
+async def test_import_route_stops_reading_oversized_upload(monkeypatch):
+    limit = 32
+
+    class OversizedUpload:
+        closed = False
+        bytes_read = 0
+
+        async def read(self, size: int) -> bytes:
+            self.bytes_read += size
+            return b"x" * size
+
+        async def close(self) -> None:
+            self.closed = True
+
+    upload = OversizedUpload()
+    monkeypatch.setattr(
+        "app.config.get_settings",
+        lambda: SimpleNamespace(cas_max_bytes=limit),
+    )
+
+    try:
+        await routes.portfolio_import(upload)
+    except HTTPException as exc:
+        assert exc.status_code == 413
+    else:
+        raise AssertionError("Oversized upload must be rejected.")
+
+    assert upload.bytes_read == limit + 1
+    assert upload.closed

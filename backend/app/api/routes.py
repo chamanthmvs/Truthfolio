@@ -201,7 +201,10 @@ async def portfolio_import(file: UploadFile = File(...), password: str = Form(""
     from app.data import cas_import
 
     settings = get_settings()
-    data = await file.read()
+    try:
+        data = await file.read(settings.cas_max_bytes + 1)
+    finally:
+        await file.close()
     if len(data) > settings.cas_max_bytes:
         raise HTTPException(413, "File is too large. Please upload the CAS PDF itself.")
 

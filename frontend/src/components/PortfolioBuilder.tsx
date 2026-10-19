@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SearchBar from "./SearchBar";
-import { importStatement } from "@/lib/api";
+import { CAS_MAX_BYTES, importStatement } from "@/lib/api";
 import type { DraftHolding, ImportResult, SchemeHit } from "@/lib/types";
 import { formatINR } from "@/lib/format";
 
@@ -168,6 +168,23 @@ function StatementImport({ setDrafts }: { setDrafts: (d: DraftHolding[]) => void
   const [msg, setMsg] = useState<{ text: string; tone: "ok" | "warn" | "err" } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  function selectFile(input: HTMLInputElement) {
+    const selected = input.files?.[0] ?? null;
+    setPassword("");
+    setNeedsPassword(false);
+    if (selected && selected.size > CAS_MAX_BYTES) {
+      setFile(null);
+      setMsg({
+        text: "This file is over the 15 MB limit. Choose a smaller CAS PDF or add your holdings manually.",
+        tone: "err",
+      });
+      input.value = "";
+      return;
+    }
+    setFile(selected);
+    setMsg(null);
+  }
+
   async function run() {
     if (!file) return;
     setBusy(true);
@@ -190,8 +207,8 @@ function StatementImport({ setDrafts }: { setDrafts: (d: DraftHolding[]) => void
     } catch (error) {
       setMsg({
         text: error instanceof Error
-          ? `Import failed: ${error.message}. Please check the file and try again.`
-          : "Import failed. Please check the file and try again.",
+          ? error.message
+          : "We couldn't complete the import. Please try again.",
         tone: "err",
       });
     } finally {
@@ -223,7 +240,7 @@ function StatementImport({ setDrafts }: { setDrafts: (d: DraftHolding[]) => void
             ref={inputRef}
             type="file"
             accept="application/pdf,.pdf"
-            onChange={(e) => { setFile(e.target.files?.[0] ?? null); setMsg(null); }}
+            onChange={(e) => selectFile(e.currentTarget)}
             className="block w-full text-sm text-ink-dim file:mr-3 file:rounded-lg file:border file:border-line file:bg-bg file:px-3 file:py-1.5 file:text-sm file:text-ink hover:file:border-brand/40"
           />
         </label>
@@ -261,6 +278,9 @@ function StatementImport({ setDrafts }: { setDrafts: (d: DraftHolding[]) => void
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 10V8a6 6 0 1112 0v2M5 10h14v10H5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         Processed in memory only — never saved or logged, password used once then discarded,
         nothing sent to any AI or web service.
+      </p>
+      <p className="mt-1 text-[11px] text-ink-faint">
+        Maximum file size: 15 MB. If an upload is interrupted, check your connection and try again.
       </p>
     </div>
   );

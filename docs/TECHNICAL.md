@@ -575,11 +575,15 @@ sequenceDiagram
 - Only matched scheme data and the holdings needed by the builder are returned. PAN, folio,
   investor name, and email are not part of the returned holding shape.
 - The frontend clears its password state after the import attempt.
+- The frontend rejects files over the configured 15 MB default before upload. The API reads at
+  most `cas_max_bytes + 1` bytes and returns HTTP 413 if the limit is exceeded, rather than
+  loading an arbitrarily large file into application memory.
 - Active holdings require closing units greater than zero. Matching uses AMFI code, then ISIN.
 - Statements older than `cas_reject_days` are rejected; statements older than
   `cas_warn_days` produce a warning.
-- The configured upload size is checked after `UploadFile.read()` has read the request bytes.
-  The current route does not implement a streaming size guard.
+- A connection-level failure is shown as an API/network reachability problem; HTTP errors retain
+  the server-provided detail where available, so users can distinguish service failures from
+  unreadable PDFs or incorrect passwords.
 
 As with any in-memory processing, this is not a claim of secure memory erasure: the route
 releases references after processing, but Python/runtime memory reclamation is not a

@@ -11,15 +11,62 @@ import type {
   SchemeHit,
 } from "./types";
 
+export const CAS_MAX_BYTES = 15_000_000;
+
 /** Upload a CAS PDF (+ optional password) and get back matched holdings. */
 export async function importStatement(file: File, password: string): Promise<ImportResult> {
+  if (file.size > CAS_MAX_BYTES) {
+    return { status: "error", message: "File is too large. Please upload a CAS PDF under 15 MB." };
+  }
   const fd = new FormData();
   fd.append("file", file);
   fd.append("password", password);
-  const res = await fetch(`${API_BASE}/portfolio/import`, { method: "POST", body: fd });
-  if (res.status === 413) return { status: "error", message: "That file is too large — upload the CAS PDF itself." };
-  if (!res.ok) throw new Error(`import failed: ${res.status}`);
-  return res.json();
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/portfolio/import`, { method: "POST", body: fd });
+  } catch (cause) {
+    if (cause instanceof TypeError) {
+      throw new Error(
+        "We couldn't reach Truthfolio to upload your statement. Check your internet connection and try again. If the problem continues, please try again later.",
+      );
+    }
+    throw cause;
+  }
+  if (res.status === 413) {
+    return {
+      status: "error",
+      message: "File is too large. Please upload a CAS PDF under 15 MB.",
+    };
+  }
+  if (!res.ok) {
+    if (res.status >= 500) {
+      throw new Error(
+        "Truthfolio couldn't process your statement right now. Please wait a moment and try again.",
+      );
+    }
+    let detail = "";
+    try {
+      const body = await res.json();
+      if (typeof body.detail === "string") detail = body.detail;
+    } catch {
+      // Use the HTTP status when the API response has no readable JSON error body.
+    }
+    throw new Error(
+      detail || `We couldn't process this upload (error ${res.status}). Please try again.`,
+    );
+  }
+  try {
+    return await res.json();
+  } catch (cause) {
+    if (cause instanceof TypeError) {
+      throw new Error(
+        "The connection was interrupted before the import finished. Please try again.",
+      );
+    }
+    throw new Error(
+      "We received an unexpected response while importing your statement. Please try again later.",
+    );
+  }
 }
 
 const API_BASE =
