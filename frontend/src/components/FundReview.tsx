@@ -9,15 +9,21 @@ import RollingReturns from "./RollingReturns";
 import EvidenceLedger from "./EvidenceLedger";
 import ResearchPanel from "./ResearchPanel";
 import InsightsPanel from "./InsightsPanel";
+import Recommendations from "./Recommendations";
+import FundChat from "./FundChat";
+import FundHistoryChart from "./FundHistoryChart";
 import Markdown from "./Markdown";
 
 export default function FundReview({
   review,
   personal,
+  onOpenFund,
 }: {
   review: ReviewResponse;
   personal?: PersonalHolding;
+  onOpenFund?: (code: string, name: string) => void;
 }) {
+  const showAlternatives = review.verdict === "Stop" || review.verdict === "Shift";
   return (
     <div className="space-y-6">
       <VerdictCard review={review} />
@@ -26,10 +32,18 @@ export default function FundReview({
 
       <Narrative review={review} />
 
+      <FundHistoryChart schemeCode={review.scheme_code} />
+
+      {showAlternatives && (
+        <Recommendations schemeCode={review.scheme_code} onOpenFund={onOpenFund} />
+      )}
+
       <nav className="review-jumpnav" aria-label="Jump to a review section">
         <span>ON THIS PAGE</span>
+        <a href="#review-growth">Growth</a>
         <a href="#review-metrics">The numbers</a>
         <a href="#review-peers">Peer comparison</a>
+        {showAlternatives && <a href="#review-alternatives">Alternatives</a>}
         <a href="#review-evidence">Evidence</a>
         <a href="#review-research">Deep research</a>
       </nav>
@@ -59,6 +73,8 @@ export default function FundReview({
       </Panel>
 
       <div id="review-research"><ResearchPanel schemeCode={review.scheme_code} /></div>
+
+      <FundChat review={review} />
 
       <Caveats caveats={review.caveats} />
     </div>

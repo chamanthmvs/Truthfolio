@@ -68,23 +68,25 @@ type Phase = "idle" | "running" | "done" | "error";
 
 function FundFlow() {
   const [phase, setPhase] = useState<Phase>("idle");
-  const [selected, setSelected] = useState<SchemeHit | null>(null);
+  const [current, setCurrent] = useState<{ code: string; name: string } | null>(null);
+  // Funds we navigated away from (via an alternative), so the user can step back.
+  const [stack, setStack] = useState<{ code: string; name: string }[]>([]);
   const [steps, setSteps] = useState<string[]>([]);
   const [review, setReview] = useState<ReviewResponse | null>(null);
   const [error, setError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
 
-  const onSelect = useCallback((scheme: SchemeHit) => {
+  const startReview = useCallback((code: string, name: string) => {
     abortRef.current?.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
-    setSelected(scheme);
+    setCurrent({ code, name });
     setReview(null);
     setError("");
     setSteps([]);
     setPhase("running");
     streamReview(
-      scheme.code,
+      code,
       {
         onStep: (m) => setSteps((p) => [...p, m]),
         onResult: (r) => { setReview(r); setPhase("done"); },
@@ -94,9 +96,30 @@ function FundFlow() {
     );
   }, []);
 
+  const onSelect = useCallback((scheme: SchemeHit) => {
+    setStack([]);
+    startReview(scheme.code, scheme.name);
+  }, [startReview]);
+
+  // Open an alternative's full review, remembering the fund we came from.
+  const openFund = (code: string, name: string) => {
+    if (current && current.code !== code) setStack((s) => [...s, current]);
+    startReview(code, name);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const back = () => {
+    const prev = stack[stack.length - 1];
+    if (!prev) return;
+    setStack((s) => s.slice(0, -1));
+    startReview(prev.code, prev.name);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const reset = () => {
     abortRef.current?.abort();
-    setPhase("idle"); setSelected(null); setReview(null); setSteps([]); setError("");
+    setStack([]);
+    setPhase("idle"); setCurrent(null); setReview(null); setSteps([]); setError("");
   };
 
   if (phase === "idle") {
@@ -113,11 +136,25 @@ function FundFlow() {
     );
   }
 
+  const previous = stack[stack.length - 1];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-ink-faint">
-          {selected && <>Reviewing <span className="text-ink-dim">{selected.name}</span></>}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 text-sm text-ink-faint">
+          {previous ? (
+            <button
+              onClick={back}
+              className="flex items-center gap-1.5 text-ink-dim transition hover:text-ink"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Back to <span className="text-ink">{previous.name}</span>
+            </button>
+          ) : (
+            current && <>Reviewing <span className="text-ink-dim">{current.name}</span></>
+          )}
         </div>
         <NewButton onClick={reset} />
       </div>
@@ -125,7 +162,7 @@ function FundFlow() {
         <ThinkingStream steps={steps} done={phase === "done"} />
       )}
       {phase === "error" && <ErrorBox msg={error} />}
-      {review && <FundReview review={review} />}
+      {review && <FundReview review={review} onOpenFund={openFund} />}
     </div>
   );
 }

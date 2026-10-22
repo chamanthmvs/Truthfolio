@@ -189,6 +189,52 @@ export interface MarketPulse {
   sections: MarketSection[];
 }
 
+export interface MarketHistoryPoint {
+  date: string;
+  value: number;
+}
+
+export interface MarketScenarioPoint {
+  year: number;
+  value: number;
+}
+
+export interface MarketScenario {
+  label: string;
+  cagr: number;
+  blurb: string;
+  points: MarketScenarioPoint[];
+}
+
+export interface MarketChartProxy {
+  scheme_name: string;
+  scheme_code: string;
+  amc: string;
+  inception: string;
+  as_of: string;
+  history_years: number;
+}
+
+export interface MarketChartStats {
+  growth_multiple: number;
+  cagr_since_inception: number | null;
+  cagr_10y: number | null;
+  cagr_5y: number | null;
+  worst_drawdown: number;
+}
+
+export interface MarketChartResponse {
+  available: boolean;
+  reason?: string;
+  proxy?: MarketChartProxy;
+  history?: MarketHistoryPoint[];
+  stats?: MarketChartStats;
+  scenarios?: MarketScenario[];
+  scenario_years?: number;
+  scenario_note?: string;
+  disclaimer?: string;
+}
+
 export interface Footnote {
   n: number;
   title: string;
@@ -196,6 +242,64 @@ export interface Footnote {
   domain: string;
   reliability: number;
   published: string | null;
+}
+
+export interface RecommendationComparison {
+  key: string;
+  label: string;
+  unit: string; // "%" | "ratio"
+  alt_value: number | null;
+  subject_value: number | null;
+  better: boolean;
+}
+
+export interface Alternative {
+  scheme_code: string;
+  scheme_name: string;
+  amc: string;
+  category: string;
+  strength_score: number;
+  strength_edge: number | null;
+  metrics_won: number;
+  headline: string;
+  reasons: string[];
+  comparison: RecommendationComparison[];
+}
+
+export interface FundHistoryPoint {
+  date: string;
+  value: number;
+}
+
+export interface FundHistoryResponse {
+  available: boolean;
+  reason?: string;
+  scheme_name?: string;
+  inception?: string;
+  as_of?: string;
+  history_years?: number;
+  history?: FundHistoryPoint[];
+  stats?: {
+    growth_multiple: number;
+    cagr_since_inception: number | null;
+    cagr_5y: number | null;
+    worst_drawdown: number;
+  };
+  disclaimer?: string;
+}
+
+export interface RecommendationsResponse {
+  subject: {
+    scheme_code: string;
+    scheme_name: string;
+    category: string;
+    strength_score: number | null;
+  } | null;
+  peers_considered: number;
+  alternatives: Alternative[];
+  basis: string;
+  disclaimer: string;
+  empty_reason: string | null;
 }
 
 export interface ReviewResponse {

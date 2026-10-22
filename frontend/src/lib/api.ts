@@ -7,6 +7,7 @@ import type {
   PortfolioChatMessage,
   PortfolioResponse,
   PortfolioSummary,
+  RecommendationsResponse,
   ReviewResponse,
   SchemeHit,
 } from "./types";
@@ -171,6 +172,85 @@ export async function fetchMarketPulse(focus?: string): Promise<MarketPulseRespo
   const q = focus ? `?focus=${encodeURIComponent(focus)}` : "";
   const res = await fetch(`${API_BASE}/market-pulse${q}`);
   if (!res.ok) throw new Error(`market pulse failed: ${res.status}`);
+  return res.json();
+}
+
+/** Same-category alternatives that score higher on our transparent metrics (free, cached). */
+export async function fetchRecommendations(schemeCode: string): Promise<RecommendationsResponse> {
+  const res = await fetch(
+    `${API_BASE}/recommendations?scheme_code=${encodeURIComponent(schemeCode)}`,
+  );
+  if (!res.ok) throw new Error(`recommendations failed: ${res.status}`);
+  return res.json();
+}
+
+/** Ask one bounded, grounded follow-up question about a single analyzed fund. */
+export async function askFundQuestion(
+  review: ReviewResponse,
+  messages: PortfolioChatMessage[],
+): Promise<string> {
+  const context = {
+    scheme_name: review.scheme_name,
+    category: review.category,
+    as_of: review.as_of ?? "",
+    verdict: review.verdict,
+    health_score: review.health_score,
+    confidence: review.confidence * 100,
+    headline: review.headline.slice(0, 500),
+    metrics: review.metrics.slice(0, 14).map(({ label, value, unit }) => ({
+      label,
+      value: value === null ? null : unit === "%" ? value * 100 : value,
+      unit,
+    })),
+    rolling: review.rolling.slice(0, 4).map(
+      (r) =>
+        `${r.window_years}y rolling return: typically ${(r.median_cagr * 100).toFixed(1)}%/yr ` +
+        `(worst ${(r.min_cagr * 100).toFixed(1)}%, best ${(r.max_cagr * 100).toFixed(1)}%); ` +
+        `negative in ${(r.pct_negative * 100).toFixed(0)}% of windows`,
+    ),
+    peer_summary: review.peers.ranks
+      .filter((rank) => rank.percentile !== null)
+      .slice(0, 6)
+      .map((rank) => `${rank.label}: ${Math.round((rank.percentile ?? 0) * 100)}th percentile`)
+      .join("; "),
+    evidence: review.evidence.slice(0, 10).map(({ claim }) => claim.slice(0, 400)),
+    caveats: review.caveats.slice(0, 6).map((c) => c.slice(0, 400)),
+  };
+  const res = await fetch(`${API_BASE}/fund/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ context, messages }),
+  });
+  if (!res.ok) {
+    let message = `Fund chat failed (${res.status}).`;
+    try {
+      const body = await res.json();
+      if (typeof body.detail === "string") message = body.detail;
+    } catch {
+      // Preserve the status-based error when the server response is not JSON.
+    }
+    throw new Error(message);
+  }
+  const body = await res.json();
+  if (typeof body.answer !== "string" || !body.answer.trim()) {
+    throw new Error("The fund assistant returned an invalid response.");
+  }
+  return body.answer;
+}
+
+/** Factual market history (Nifty-50 index-fund proxy) + illustrative scenarios (free, cached). */
+export async function fetchMarketChart(): Promise<import("./types").MarketChartResponse> {
+  const res = await fetch(`${API_BASE}/market-chart`);
+  if (!res.ok) throw new Error(`market chart failed: ${res.status}`);
+  return res.json();
+}
+
+/** Factual NAV growth-of-₹100 history for one fund (deterministic, free). */
+export async function fetchFundHistory(
+  schemeCode: string,
+): Promise<import("./types").FundHistoryResponse> {
+  const res = await fetch(`${API_BASE}/fund/history?scheme_code=${encodeURIComponent(schemeCode)}`);
+  if (!res.ok) throw new Error(`fund history failed: ${res.status}`);
   return res.json();
 }
 

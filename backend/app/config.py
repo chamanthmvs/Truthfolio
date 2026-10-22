@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     # --- Risk-free rate used for Sharpe/Sortino (annualised, India ~ short-term G-Sec) ---
     risk_free_rate: float = 0.065
 
+    # --- Market history chart: a Nifty-50 INDEX-FUND NAV as a free, factual market proxy. ---
+    # Default: Aditya Birla Sun Life Nifty 50 Index Fund (Direct, Growth) — ~14y of history on
+    # mfapi. If the code ever stops resolving, the chart falls back to the longest-history plain
+    # "Nifty 50 Index" Direct-Growth fund in the AMFI master.
+    market_proxy_code: str = "119648"
+
     # --- CAS statement import: freshness policy ---
     cas_warn_days: int = 30
     cas_reject_days: int = 90

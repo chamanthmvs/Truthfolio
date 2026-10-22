@@ -8,6 +8,11 @@ import json
 from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 
+from app.agent.fund_chat import (
+    FundChatError,
+    answer_fund_question,
+    reserve_daily_chat_request as reserve_daily_fund_chat_request,
+)
 from app.agent.graph import review_fund
 from app.agent.portfolio import HoldingInput, analyze_holding
 from app.agent.portfolio_chat import (
@@ -19,6 +24,8 @@ from app.analysis import portfolio as agg
 from app.analysis.review_view import assemble_review
 from app.data import amfi
 from app.models.schemas import (
+    FundChatRequest,
+    FundChatResponse,
     PortfolioChatRequest,
     PortfolioChatResponse,
     PortfolioRequest,
@@ -126,6 +133,46 @@ async def research(scheme_code: str = Query(...)):
     }
 
 
+@router.get("/recommendations")
+async def recommendations(scheme_code: str = Query(...)):
+    """Evidence-based same-category alternatives that score higher on our transparent metrics.
+
+    Deterministic and free (no LLM, no web search): reuses the peer sample and the health-score
+    engine. Surfaced in the UI when a fund's verdict is Stop/Shift, framed as research leads —
+    never a recommendation to buy.
+    """
+    from app.analysis import recommend
+
+    master = await amfi.get_master()
+    scheme = master.get(scheme_code)
+    if scheme is None:
+        raise HTTPException(404, f"Scheme {scheme_code} not found.")
+    return await recommend.recommend_alternatives(scheme_code)
+
+
+@router.post("/fund/chat", response_model=FundChatResponse)
+async def fund_chat(payload: FundChatRequest):
+    """Answer a short, on-demand question using only one analyzed fund's computed context."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not settings.llm_enabled:
+        raise HTTPException(
+            503,
+            "Fund chat is unavailable because no supported AI provider is configured.",
+        )
+    if not reserve_daily_fund_chat_request():
+        raise HTTPException(
+            429,
+            "The fund assistant has reached its daily request limit. Please try again tomorrow.",
+        )
+    try:
+        answer = await answer_fund_question(payload)
+    except FundChatError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    return {"answer": answer}
+
+
 @router.get("/insights")
 async def insights(scheme_code: str = Query(...)):
     """Structured insight cards for one fund (LLM-synthesised, cached; deterministic fallback)."""
@@ -151,6 +198,23 @@ async def market_pulse(focus: str | None = Query(None)):
     from app.agent import market
 
     return await market.generate_market_pulse(focus)
+
+
+@router.get("/fund/history")
+async def fund_history(scheme_code: str = Query(...)):
+    """Factual NAV growth-of-₹100 history + stats for one fund. Deterministic and free."""
+    from app.analysis import fund_history as fh
+
+    return await fh.fund_history(scheme_code)
+
+
+@router.get("/market-chart")
+async def market_chart():
+    """Factual market history (a Nifty-50 index-fund NAV proxy) plus clearly-labelled,
+    illustrative scenario bands. Deterministic and free — no forecasts, no credits spent."""
+    from app.agent import market_chart as market_chart_mod
+
+    return await market_chart_mod.market_chart()
 
 
 @router.post("/insights/portfolio")

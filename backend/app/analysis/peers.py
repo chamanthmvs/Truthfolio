@@ -96,6 +96,15 @@ def _pick_peer_codes(master: amfi.SchemeMaster, subject: amfi.Scheme) -> list[st
     return chosen
 
 
+def pick_peer_codes(master: amfi.SchemeMaster, subject: amfi.Scheme) -> list[str]:
+    """Public: the same-category peer sample (Direct+Growth, AMC-spread) for a subject fund.
+
+    Shared with the recommendations engine so alternatives are drawn from exactly the peer
+    set used to rank the fund in the first place.
+    """
+    return _pick_peer_codes(master, subject)
+
+
 def _percentile(value: float, pool: list[float], higher_is_better: bool) -> float:
     """Fraction of the (peers + self) pool this value is at least as good as."""
     full = pool + [value]

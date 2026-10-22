@@ -138,6 +138,56 @@ class PortfolioChatResponse(BaseModel):
     answer: str = Field(..., min_length=1, max_length=2000)
 
 
+class FundChatContext(BaseModel):
+    """One analyzed fund's computed data — the only ground the fund assistant may stand on."""
+
+    scheme_name: str = Field(..., min_length=1, max_length=240)
+    category: str = Field("", max_length=120)
+    as_of: str = Field("", max_length=40)
+    verdict: str = Field(..., max_length=40)
+    health_score: float = Field(..., ge=0, le=100, allow_inf_nan=False)
+    confidence: float = Field(..., ge=0, le=100, allow_inf_nan=False)
+    headline: str = Field("", max_length=500)
+    metrics: list[PortfolioChatMetric] = Field(default_factory=list, max_length=14)
+    rolling: list[Annotated[str, Field(max_length=200)]] = Field(
+        default_factory=list, max_length=4
+    )
+    peer_summary: str = Field("", max_length=600)
+    evidence: list[Annotated[str, Field(max_length=400)]] = Field(
+        default_factory=list, max_length=10
+    )
+    caveats: list[Annotated[str, Field(max_length=400)]] = Field(
+        default_factory=list, max_length=6
+    )
+
+
+class FundChatRequest(BaseModel):
+    context: FundChatContext
+    messages: list[PortfolioChatMessage] = Field(..., min_length=1, max_length=9)
+
+    @model_validator(mode="after")
+    def validate_conversation(self) -> FundChatRequest:
+        if len(self.model_dump_json().encode("utf-8")) > 50_000:
+            raise ValueError("Fund chat context is too large.")
+        if (len(self.messages) + 1) // 2 > 5:
+            raise ValueError("A fund chat is limited to five questions.")
+        for index, message in enumerate(self.messages):
+            expected = "user" if index % 2 == 0 else "assistant"
+            if message.role != expected:
+                raise ValueError("Conversation messages must alternate user and assistant.")
+            if not message.content:
+                raise ValueError("Conversation messages cannot be blank.")
+            if message.role == "user" and len(message.content) > 600:
+                raise ValueError("User questions cannot exceed 600 characters.")
+        if len(self.messages) % 2 == 0:
+            raise ValueError("Conversation must end with a user question.")
+        return self
+
+
+class FundChatResponse(BaseModel):
+    answer: str = Field(..., min_length=1, max_length=2000)
+
+
 class ReviewResponse(BaseModel):
     scheme_code: str
     scheme_name: str

@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { fetchMarketPulse, type MarketPulseResponse } from "@/lib/api";
 import { toneColor } from "@/lib/format";
 import { CitedText, SourcesList } from "./Citations";
+import MarketChart from "./MarketChart";
 
 type Phase = "idle" | "loading" | "done" | "error";
 
@@ -43,35 +44,46 @@ export default function MarketPulseView() {
 
   return (
     <div className="space-y-6">
+      {/* Always-on header + the free, factual history/scenario chart. */}
+      <div className="text-center">
+        <motion.h1
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="mx-auto max-w-[16ch] text-4xl font-extrabold leading-[1.04] tracking-[-0.03em] text-ink sm:text-6xl"
+        >
+          Today&apos;s market, honestly.
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="mx-auto mt-5 max-w-[48ch] text-lg leading-relaxed text-ink-dim"
+        >
+          Where the Indian market has really been over the years — plus a plain-English, cited
+          read on today&apos;s mood, risks, and what analysts expect.
+        </motion.p>
+      </div>
+
+      <MarketChart />
+
       {phase === "idle" && (
-        <div className="text-center">
-          <motion.h1
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="mx-auto max-w-[16ch] text-4xl font-extrabold leading-[1.04] tracking-[-0.03em] text-ink sm:text-6xl"
-          >
-            Today&apos;s market, honestly.
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="mx-auto mt-5 max-w-[46ch] text-lg leading-relaxed text-ink-dim"
-          >
-            A plain-English read on the mood, what&apos;s driving it, the risks, and what
-            analysts expect — every point backed by a cited source.
-          </motion.p>
+        <section className="glass rounded-2xl p-6 text-center sm:p-8">
+          <h2 className="text-base font-semibold text-ink">Want today&apos;s cited market read?</h2>
+          <p className="mx-auto mt-2 max-w-[44ch] text-sm leading-relaxed text-ink-dim">
+            The mood, what&apos;s driving it, the risks, and what analysts expect — every point
+            backed by a cited source.
+          </p>
           <button
             onClick={run}
-            className="mt-8 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+            className="mt-5 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
           >
             Get today&apos;s market pulse
           </button>
           <p className="mt-3 text-[11px] text-ink-faint">
             Loads on demand and is cached — uses a small amount of web-search credit.
           </p>
-        </div>
+        </section>
       )}
 
       {phase === "loading" && (
