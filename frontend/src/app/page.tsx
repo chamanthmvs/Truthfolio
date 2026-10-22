@@ -12,6 +12,7 @@ import PortfolioChat from "@/components/PortfolioChat";
 import HoldingsTable from "@/components/HoldingsTable";
 import InsightsPanel from "@/components/InsightsPanel";
 import MarketPulseView from "@/components/MarketPulseView";
+import HowItWorksDialog from "@/components/HowItWorksDialog";
 import { streamReview, streamPortfolio } from "@/lib/api";
 import type {
   DraftHolding,
@@ -261,14 +262,7 @@ function Header() {
           <span className="block text-[11px] text-ink-faint">The evidence-first fund review</span>
         </div>
       </a>
-      <a
-        href="https://github.com/chamanthmvs/Truthfolio/blob/main/docs/TECHNICAL.md"
-        target="_blank"
-        rel="noreferrer"
-        className="app-guide-link"
-      >
-        How it works <span aria-hidden="true">↗</span>
-      </a>
+      <HowItWorksDialog />
     </header>
   );
 }

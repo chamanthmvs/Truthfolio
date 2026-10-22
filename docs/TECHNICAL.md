@@ -856,6 +856,11 @@ Each fund/portfolio flow uses a local phase (`idle`, `running`, `done`, `error`)
 inactive panels are hidden, so switching tabs preserves draft holdings, completed results,
 and optional-panel state.
 
+The header's **How scoring works** control opens an in-app explanation of the fund health
+components, verdict thresholds, and separate portfolio score. It is intentionally not a link
+to the source repository. Next.js's development indicator is disabled in `next.config.ts`; it
+is tooling chrome, not a Truthfolio user feature.
+
 ### Transport
 
 `frontend/src/lib/api.ts` owns JSON fetches and manual SSE decoding. Fund streams handle
