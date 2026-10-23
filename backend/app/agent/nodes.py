@@ -145,10 +145,11 @@ def _deterministic_narrative(state: AgentState) -> dict:
         lines += [f"- {e['claim']}" for e in neg]
 
     caveats = [
-        "This is analytical, educational output — not personalised investment advice.",
-        "Based on past NAV data; past performance does not guarantee future results.",
-        "Qualitative factors (manager change, mandate drift, expense ratio) are not yet "
-        "incorporated in this version — add them before acting.",
+        "This is educational analysis, not personalised advice — it can't know your goals, "
+        "time horizon, or tax situation.",
+        "It's built on past NAV data, and past performance never guarantees future results.",
+        "It weighs the numbers, not softer signals like a recent manager change, mandate drift, "
+        "or a high expense ratio — check those (the Deep Research panel can help) before you act.",
     ]
     return {
         "headline": headline,

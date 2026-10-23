@@ -12,7 +12,6 @@ import PortfolioChat from "@/components/PortfolioChat";
 import HoldingsTable from "@/components/HoldingsTable";
 import InsightsPanel from "@/components/InsightsPanel";
 import MarketPulseView from "@/components/MarketPulseView";
-import PrivacyNote from "@/components/PrivacyNote";
 import HowItWorksDialog from "@/components/HowItWorksDialog";
 import { streamReview, streamPortfolio } from "@/lib/api";
 import type {
@@ -55,7 +54,6 @@ export default function Home() {
           <MarketPulseView />
         </section>
       </div>
-      <PrivacyNote />
       <footer className="app-footer mt-16">
         <span>Truthfolio · Independent analysis, clearly explained.</span>
         <span>Educational only — not personalised investment advice.</span>

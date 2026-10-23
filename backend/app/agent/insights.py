@@ -128,26 +128,45 @@ async def generate_fund_insights(state: dict) -> dict:
     return result
 
 
+def _card_title(direction: str, claim: str) -> str:
+    """A specific, varied title inferred from what the evidence is actually about."""
+    c = (claim or "").lower()
+    pos = direction == "positive"
+    if "percentile" in c or "peers" in c:
+        return "Ahead of its peers" if pos else "Behind its peers"
+    if "sharpe" in c or "sortino" in c or "for the risk" in c or "risk-adjusted" in c:
+        return "Well paid for the risk" if pos else "Poorly rewarded for the risk"
+    if "drawdown" in c or "fall" in c or "drop" in c:
+        return "Manageable worst-case" if pos else "A painful worst-case fall"
+    if "rolling" in c or "negative" in c or "consisten" in c or "dipped" in c:
+        return "Reliably steady" if pos else "Bumpy and inconsistent"
+    if "annualis" in c or "grew" in c or "return" in c or "growth" in c:
+        return "Strong long-term growth" if pos else "Lagging long-term growth"
+    return "A genuine strength" if pos else "A real concern"
+
+
 def _fund_fallback(state: dict) -> list[dict]:
     """Deterministic insights from the evidence ledger when no LLM is available."""
-    ev = state.get("evidence", [])
+    verdict = state.get("verdict", "Inconclusive")
+    tone = {"Continue": "positive", "Shift": "caution", "Stop": "negative"}.get(verdict, "neutral")
     out: list[dict] = [
         {
-            "title": f"Overall: {state.get('verdict', 'Inconclusive')}",
-            "detail": f"Health score {state.get('health_score', 0)}/100, built only from "
-            "numbers computed from official NAV data.",
+            "title": f"The verdict: {verdict}",
+            "detail": f"A health score of {state.get('health_score', 0)}/100, computed only from "
+            "official NAV data — no opinions, no guesswork.",
             "category": "big-picture",
-            "tone": "positive" if state.get("verdict") == "Continue" else "caution",
+            "tone": tone,
         }
     ]
-    for e in ev:
-        if e.get("direction") in ("positive", "negative"):
+    for e in state.get("evidence", []):
+        d = e.get("direction")
+        if d in ("positive", "negative"):
             out.append(
                 {
-                    "title": "What's working" if e["direction"] == "positive" else "A concern",
+                    "title": _card_title(d, e.get("claim", "")),
                     "detail": e.get("claim", ""),
                     "category": e.get("category", "performance"),
-                    "tone": "positive" if e["direction"] == "positive" else "caution",
+                    "tone": "positive" if d == "positive" else "caution",
                 }
             )
     return out[:6]
@@ -181,20 +200,30 @@ async def generate_portfolio_insights(summary: dict, holdings_brief: list[dict])
 
 
 def _portfolio_fallback(summary: dict) -> list[dict]:
+    verdict = summary.get("verdict", "")
     out: list[dict] = [
         {
-            "title": f"Portfolio: {summary.get('verdict', '')}",
+            "title": f"The verdict: {verdict}",
             "detail": summary.get("headline", ""),
             "category": "big-picture",
-            "tone": "positive" if summary.get("verdict") == "Healthy" else "caution",
+            "tone": "positive" if verdict == "Healthy" else "caution",
         },
         {
-            "title": "Diversification",
+            "title": "How your money is spread",
             "detail": summary.get("diversification", ""),
             "category": "concentration",
             "tone": "neutral",
         },
     ]
     for a in summary.get("action_items", [])[:3]:
-        out.append({"title": "Worth reconsidering", "detail": a, "category": "watch", "tone": "caution"})
+        al = a.lower()
+        if "shift" in al:
+            title = "Consider shifting a holding"
+        elif "spread" in al or "diversif" in al or "bet" in al:
+            title = "Spread your bets wider"
+        elif "reconsider" in al or "weak" in al:
+            title = "Reconsider a weak holding"
+        else:
+            title = "Worth a closer look"
+        out.append({"title": title, "detail": a, "category": "watch", "tone": "caution"})
     return out[:6]

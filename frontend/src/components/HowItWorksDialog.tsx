@@ -82,7 +82,30 @@ export default function HowItWorksDialog() {
           </div>
 
           <div className="overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
-            <section aria-labelledby="fund-score-heading">
+            <section aria-labelledby="plain-heading">
+              <h3 id="plain-heading" className="text-sm font-semibold text-ink">In plain words</h3>
+              <ol className="mt-3 space-y-2.5">
+                {[
+                  "You pick a fund (or add your portfolio).",
+                  "We pull its real price history (NAV) from official public data — the actual past, not estimates.",
+                  "We work out the returns, risk and consistency, and rank it against similar funds.",
+                  "A fixed scoring formula turns that into an honest verdict — Continue, Stop, or Shift — with every number explained.",
+                ].map((text, i) => (
+                  <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-ink-dim">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-brand-soft font-mono text-[11px] font-semibold text-brand">
+                      {i + 1}
+                    </span>
+                    {text}
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-3 text-xs leading-relaxed text-ink-faint">
+                No vibes, no sales pitch — the verdict is arithmetic you can inspect. Here&apos;s
+                exactly how it&apos;s built, so you can check it yourself.
+              </p>
+            </section>
+
+            <section className="mt-7" aria-labelledby="fund-score-heading">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h3 id="fund-score-heading" className="text-sm font-semibold text-ink">
                   Fund health score
@@ -137,6 +160,23 @@ export default function HowItWorksDialog() {
                 then subtracts a concentration penalty of up to 12 points based on fund count,
                 holding concentration, and category concentration. The result is Healthy at 65+
                 with a penalty of 5 or less, Minor tweaks at 50+, and Needs rebalancing below 50.
+              </p>
+            </section>
+
+            <section className="mt-6 rounded-xl border border-line bg-bg-subtle/70 p-4" aria-labelledby="data-heading">
+              <h3 id="data-heading" className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <svg viewBox="0 0 20 20" width="15" height="15" fill="none" aria-hidden="true">
+                  <rect x="4" y="8.5" width="12" height="8" rx="1.75" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M6.75 8.5V6.5a3.25 3.25 0 0 1 6.5 0v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                Your data — we keep nothing
+              </h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-ink-dim">
+                No accounts, no database. The funds you enter and any statement you upload are used
+                to produce your analysis and then discarded — close the tab and nothing remains. A
+                CAS statement is read in memory only; the file and its password are never written to
+                disk, logged, or stored. If you turn on the AI features, your question and the
+                on-screen analysis go to the AI provider to answer it — we don&apos;t save them.
               </p>
             </section>
 
