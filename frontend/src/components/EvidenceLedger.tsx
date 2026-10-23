@@ -29,7 +29,6 @@ export default function EvidenceLedger({ evidence }: { evidence: EvidenceItem[] 
 function EvidenceRow({ item, index }: { item: EvidenceItem; index: number }) {
   const [open, setOpen] = useState(false);
   const color = toneColor[item.direction];
-  const topSource = item.sources[0];
 
   return (
     <motion.div
