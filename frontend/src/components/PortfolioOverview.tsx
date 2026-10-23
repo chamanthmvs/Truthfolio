@@ -117,10 +117,16 @@ export default function PortfolioOverview({ summary }: { summary: PortfolioSumma
 
       {/* Caveats */}
       <section className="glass rounded-2xl border-caution/20 p-5 sm:p-6">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-caution/90">
-          Read this before acting
-        </h2>
-        <ul className="space-y-2 text-sm text-ink-dim">
+        <div className="mb-1 flex items-center gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-dim">
+            The honest limits
+          </h2>
+          <span className="rounded-full border border-caution/30 bg-caution/5 px-2 py-0.5 text-[10px] font-medium text-caution/90">
+            Please read
+          </span>
+        </div>
+        <p className="mb-4 text-xs text-ink-faint">What this analysis can and can&apos;t tell you.</p>
+        <ul className="space-y-2.5 text-sm text-ink-dim">
           {summary.caveats.map((c, i) => (
             <li key={i} className="flex gap-2.5">
               <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-caution/70" />

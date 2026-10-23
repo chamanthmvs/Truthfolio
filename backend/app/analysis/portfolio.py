@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from app import disclaimer
+
 
 @dataclass(slots=True)
 class Personal:
@@ -195,14 +197,7 @@ def aggregate(holdings: list[dict]) -> PortfolioSummary:
 
     headline = _headline(verdict, overall_return, div_label)
 
-    caveats = [
-        "This is educational analysis, not personalised investment advice.",
-        "Your return here is the total gain so far, not a yearly rate — we don't ask for your "
-        "purchase dates, so we can't annualise it.",
-        "Overlap is judged at the fund-category level for now; two funds in the same category "
-        "may hold many of the same stocks.",
-        "Based on past NAV data; past performance does not guarantee future results.",
-    ]
+    caveats = disclaimer.portfolio_caveats()
 
     return PortfolioSummary(
         total_invested=total_invested,
