@@ -164,7 +164,7 @@ async def recommend_alternatives(subject_code: str, limit: int = 3) -> dict:
     if subject_scheme is None:
         return _empty(None, "We couldn't find this fund to compare.")
 
-    cache_key = f"reco_v2_{subject_code}"  # v2: added per-alternative headline
+    cache_key = f"reco_v3_{subject_code}"  # v3: scan the full category, not the 18-fund sample
     cached = cache.read(cache_key, _CACHE_TTL)
     if cached is not None:
         return cached
@@ -184,7 +184,9 @@ async def recommend_alternatives(subject_code: str, limit: int = 3) -> dict:
         "health": subject_health,
     }
 
-    codes = peers_mod.pick_peer_codes(master, subject_scheme)
+    # Scan the WHOLE same-category universe (not the 18-fund ranking sample) so "the strongest
+    # alternatives" is a claim we've actually earned.
+    codes = peers_mod.category_universe_codes(master, subject_scheme)
     gathered = await asyncio.gather(*(_candidate(c, master) for c in codes))
     candidates = [c for c in gathered if c is not None]
 
@@ -222,10 +224,11 @@ async def recommend_alternatives(subject_code: str, limit: int = 3) -> dict:
         "peers_considered": len(candidates),
         "alternatives": alternatives,
         "basis": (
-            "Each fund below is scored on the same four core metrics we used above — long-term "
-            "return, risk-adjusted return, consistency and worst drop — with peer standing set "
-            "aside so the comparison is a fair, like-for-like ruler. We only list a fund if it "
-            "beats this one on that score and on most of the individual metrics."
+            f"We scored every {subject['category']} we could load ({len(candidates)} in all) "
+            "on the same four core metrics used above — long-term return, risk-adjusted return, "
+            "consistency and worst drop — with peer standing set aside so it's a fair, like-for-like "
+            "ruler. A fund is listed only if it beats this one on that composite and on most of the "
+            "individual metrics."
         ),
         "disclaimer": (
             "These are leads to research, not a recommendation to buy. We don't know your goals, "
@@ -235,8 +238,9 @@ async def recommend_alternatives(subject_code: str, limit: int = 3) -> dict:
         ),
         "empty_reason": (
             None if alternatives else
-            "No same-category fund in our sample scores clearly higher on these transparent "
-            "metrics. Staying put may be as reasonable as switching — the gap simply isn't there."
+            "We scored every fund in this category and none scores clearly higher on these "
+            "transparent metrics. Staying put may be as reasonable as switching — the gap "
+            "simply isn't there."
         ),
     }
     cache.write(cache_key, result)

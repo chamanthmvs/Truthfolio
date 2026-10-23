@@ -3,9 +3,18 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { MetricOut } from "@/lib/types";
-import { formatMetric, toneColor } from "@/lib/format";
+import { formatMetric, ordinal, toneColor } from "@/lib/format";
 
-export default function MetricCard({ metric, index }: { metric: MetricOut; index: number }) {
+export default function MetricCard({
+  metric,
+  index,
+  percentile,
+}: {
+  metric: MetricOut;
+  index: number;
+  /** 0–1 rank vs same-category peers for this metric, when available. */
+  percentile?: number | null;
+}) {
   const [open, setOpen] = useState(false);
   const tone = metric.interpretation?.tone ?? "neutral";
   const color = toneColor[tone];
@@ -16,6 +25,7 @@ export default function MetricCard({ metric, index }: { metric: MetricOut; index
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.04 }}
       className="glass group flex flex-col rounded-xl p-4"
+      style={{ borderLeft: `3px solid ${color}` }}
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-xs font-medium leading-snug text-ink-dim">{metric.label}</span>
@@ -46,6 +56,25 @@ export default function MetricCard({ metric, index }: { metric: MetricOut; index
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
           {metric.interpretation.label}
         </span>
+      )}
+
+      {/* Peer-percentile meter — where this fund sits vs same-category peers on this metric. */}
+      {percentile !== null && percentile !== undefined && (
+        <div className="mt-2.5">
+          <div className="mb-1 flex items-center justify-between text-[10px] text-ink-faint">
+            <span>vs peers</span>
+            <span className="font-mono">{ordinal(Math.round(percentile * 100))} percentile</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/[0.06]">
+            <motion.div
+              className="h-full rounded-full"
+              style={{ background: color }}
+              initial={{ width: 0 }}
+              animate={{ width: `${percentile * 100}%` }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: index * 0.04 }}
+            />
+          </div>
+        </div>
       )}
 
       {/* Child-level plain explanation — the USP. Always visible, never hidden. */}

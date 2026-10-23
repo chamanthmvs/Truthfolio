@@ -99,10 +99,37 @@ def _pick_peer_codes(master: amfi.SchemeMaster, subject: amfi.Scheme) -> list[st
 def pick_peer_codes(master: amfi.SchemeMaster, subject: amfi.Scheme) -> list[str]:
     """Public: the same-category peer sample (Direct+Growth, AMC-spread) for a subject fund.
 
-    Shared with the recommendations engine so alternatives are drawn from exactly the peer
-    set used to rank the fund in the first place.
+    Used for the percentile *ranking* display, where a representative sample is sufficient.
     """
     return _pick_peer_codes(master, subject)
+
+
+# Safety ceiling for the full-category scan. Large enough to cover any real equity category
+# in full, bounded so a pathological category can't trigger hundreds of NAV fetches.
+MAX_UNIVERSE = 120
+
+
+def category_universe_codes(
+    master: amfi.SchemeMaster, subject: amfi.Scheme, limit: int = MAX_UNIVERSE
+) -> list[str]:
+    """EVERY same-category Direct-Growth fund (one scheme per fund), for recommendations.
+
+    Recommendations scan the whole category — not the 18-fund ranking sample — so we never
+    claim "these are the strongest alternatives" without having actually checked the field.
+    """
+    seen_base: set[str] = set()
+    codes: list[str] = []
+    for s in master.schemes:
+        if s.category != subject.category or s.code == subject.code or not _is_direct_growth(s):
+            continue
+        key = s.base_name.lower()
+        if key in seen_base:
+            continue
+        seen_base.add(key)
+        codes.append(s.code)
+        if len(codes) >= limit:
+            break
+    return codes
 
 
 def _percentile(value: float, pool: list[float], higher_is_better: bool) -> float:

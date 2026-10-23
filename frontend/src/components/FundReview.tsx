@@ -24,6 +24,11 @@ export default function FundReview({
   onOpenFund?: (code: string, name: string) => void;
 }) {
   const showAlternatives = review.verdict === "Stop" || review.verdict === "Shift";
+  // Peer percentile per metric key, so each metric card can show where it sits vs peers.
+  const peerPct: Record<string, number> = {};
+  for (const r of review.peers?.ranks ?? []) {
+    if (r.percentile !== null && r.percentile !== undefined) peerPct[r.key] = r.percentile;
+  }
   return (
     <div className="space-y-6">
       <VerdictCard review={review} />
@@ -53,7 +58,7 @@ export default function FundReview({
       <Panel id="review-metrics" title="The numbers — explained like you're new to this" hint="Tap ⓘ for more depth">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {review.metrics.map((m, i) => (
-            <MetricCard key={m.key} metric={m} index={i} />
+            <MetricCard key={m.key} metric={m} index={i} percentile={peerPct[m.key]} />
           ))}
         </div>
       </Panel>
