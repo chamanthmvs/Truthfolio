@@ -190,48 +190,64 @@ export interface MarketPulse {
 }
 
 export interface MarketHistoryPoint {
-  date: string;
-  value: number;
+  d: string; // ISO date
+  v: number; // raw NAV (client rebases to the selected window)
 }
 
-export interface MarketScenarioPoint {
-  year: number;
-  value: number;
-}
-
-export interface MarketScenario {
-  label: string;
-  cagr: number;
-  blurb: string;
-  points: MarketScenarioPoint[];
-}
-
-export interface MarketChartProxy {
+export interface MarketSegmentProxy {
   scheme_name: string;
   scheme_code: string;
-  amc: string;
   inception: string;
   as_of: string;
   history_years: number;
 }
 
-export interface MarketChartStats {
+export interface MarketSegmentStats {
   growth_multiple: number;
   cagr_since_inception: number | null;
-  cagr_10y: number | null;
-  cagr_5y: number | null;
   worst_drawdown: number;
+}
+
+// Trailing total returns (fractions, e.g. 0.042 = +4.2%); null when the window predates inception.
+export interface MarketSegmentReturns {
+  m1: number | null;
+  m3: number | null;
+  m6: number | null;
+  y1: number | null;
+  y3: number | null;
+  y5: number | null;
+}
+
+export interface MarketSegment {
+  key: string;
+  label: string;
+  blurb: string;
+  proxy: MarketSegmentProxy;
+  history: MarketHistoryPoint[];
+  stats: MarketSegmentStats;
+  returns: MarketSegmentReturns;
+}
+
+export interface MarketScenarioRate {
+  label: string;
+  rate: number;
+}
+
+export interface MarketRead {
+  label: string;
+  tone: Tone;
+  sentences: string[];
 }
 
 export interface MarketChartResponse {
   available: boolean;
   reason?: string;
-  proxy?: MarketChartProxy;
-  history?: MarketHistoryPoint[];
-  stats?: MarketChartStats;
-  scenarios?: MarketScenario[];
+  as_of?: string;
+  segments?: MarketSegment[];
+  read?: MarketRead;
+  scenario_rates?: MarketScenarioRate[];
   scenario_years?: number;
-  scenario_note?: string;
+  read_note?: string;
   disclaimer?: string;
 }
 
