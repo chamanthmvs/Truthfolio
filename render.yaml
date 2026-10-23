@@ -1,0 +1,21 @@
+# Render Blueprint for the Truthfolio backend (free tier).
+# Create the service in one step: Render dashboard → New → Blueprint → pick this repo.
+# The frontend is deployed separately on Vercel (see docs/DEPLOYMENT.md).
+services:
+  - type: web
+    name: truthfolio-backend
+    runtime: docker
+    rootDir: backend # Dockerfile + app/ live here; dockerfilePath is relative to this
+    dockerfilePath: ./Dockerfile
+    plan: free # note: free instances sleep when idle → ~30-60s cold start on first hit
+    region: singapore # closest Render region to India
+    healthCheckPath: /api/health
+    autoDeploy: true # redeploy on every push to the default branch
+    envVars:
+      # The deployed frontend origin(s), comma-separated. Set after Vercel gives you a URL,
+      # e.g. https://truthfolio.vercel.app  (add your custom domain later if you add one).
+      - key: HPR_CORS_ORIGINS
+        sync: false
+      # Keyless-first: leave LLM/Tavily keys UNSET so the public demo is free and safe.
+      # Add these (and per-user rate limiting) only when you deliberately enable AI features:
+      #   LLM_PROVIDER, LLM_MODEL, ANTHROPIC_API_KEY / GROQ_API_KEY, HPR_TAVILY_API_KEY

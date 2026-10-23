@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 
-from pydantic import AliasChoices, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import AliasChoices, Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = BASE_DIR / ".cache"
@@ -23,7 +24,19 @@ class Settings(BaseSettings):
 
     # --- Server ---
     app_name: str = "Truthfolio"
-    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    # NoDecode: take HPR_CORS_ORIGINS as a raw string (not JSON) so our validator can split it.
+    cors_origins: Annotated[list[str], NoDecode] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _split_cors(cls, v: object) -> object:
+        """Allow HPR_CORS_ORIGINS as a comma-separated string (easier than JSON in prod)."""
+        if isinstance(v, str):
+            return [o.strip() for o in v.split(",") if o.strip()]
+        return v
 
     # --- Data sources (all free/public) ---
     amfi_nav_url: str = "https://portal.amfiindia.com/spages/NAVAll.txt"
