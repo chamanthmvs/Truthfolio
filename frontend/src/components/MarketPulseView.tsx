@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { fetchMarketPulse, type MarketPulseResponse } from "@/lib/api";
+import { fetchCapabilities, fetchMarketPulse, type MarketPulseResponse } from "@/lib/api";
 import { toneColor } from "@/lib/format";
 import { CitedText, SourcesList } from "./Citations";
 import MarketChart from "./MarketChart";
@@ -25,6 +25,16 @@ export default function MarketPulseView() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [data, setData] = useState<MarketPulseResponse | null>(null);
   const [err, setErr] = useState("");
+  // null = still checking; the live cited read needs server-side keys.
+  const [capable, setCapable] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchCapabilities().then((c) => active && setCapable(c.market_pulse));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function run() {
     setPhase("loading");
@@ -40,7 +50,7 @@ export default function MarketPulseView() {
   }
 
   const pulse = data?.pulse ?? null;
-  const moodColor = pulse ? toneColor[pulse.mood.tone] : "var(--brand)";
+  const moodColor = pulse ? toneColor[pulse.mood.tone] ?? toneColor.neutral : "var(--brand)";
 
   return (
     <div className="space-y-6">
@@ -67,7 +77,7 @@ export default function MarketPulseView() {
 
       <MarketChart />
 
-      {phase === "idle" && (
+      {phase === "idle" && capable === true && (
         <section className="glass rounded-2xl p-6 text-center sm:p-8">
           <h2 className="text-base font-semibold text-ink">Want today&apos;s cited market read?</h2>
           <p className="mx-auto mt-2 max-w-[44ch] text-sm leading-relaxed text-ink-dim">
@@ -82,6 +92,18 @@ export default function MarketPulseView() {
           </button>
           <p className="mt-3 text-[11px] text-ink-faint">
             Loads on demand and is cached — uses a small amount of web-search credit.
+          </p>
+        </section>
+      )}
+
+      {phase === "idle" && capable === false && (
+        <section className="glass rounded-2xl p-6 text-sm leading-relaxed text-ink-dim sm:p-8">
+          <h2 className="text-base font-semibold text-ink">The live cited market read is off here</h2>
+          <p className="mt-2 max-w-[52ch]">
+            The news-driven read (mood, drivers, risks and analyst expectations, each with a cited
+            source) needs a web-search and AI key, which aren&apos;t enabled in this public demo.
+            Everything above — the real multi-segment history and the plain read of the numbers —
+            is computed for free and needs no keys.
           </p>
         </section>
       )}
@@ -148,7 +170,7 @@ export default function MarketPulseView() {
                     </h2>
                     <ul className="space-y-2.5">
                       {sec.items.map((it, i) => {
-                        const c = toneColor[it.tone];
+                        const c = toneColor[it.tone] ?? toneColor.neutral;
                         return (
                           <li key={i} className="flex items-start gap-2.5 text-sm leading-relaxed text-ink-dim">
                             <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: c }} />

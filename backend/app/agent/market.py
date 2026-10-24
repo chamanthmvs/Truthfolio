@@ -16,12 +16,17 @@ Credit-aware: 2 (optionally 3) basic Tavily searches, heavily cached, and it sim
 from __future__ import annotations
 
 import asyncio
+import re
 
 from app.agent.appraisal import TRUST_FLOOR, appraise_web_source
 from app.agent.citations import CitationRegistry
 from app.agent.state import SourceRef
 from app.config import get_settings
 from app.data import cache, websearch
+
+_VALID_TONES = {"positive", "neutral", "caution", "negative"}
+_VALID_KINDS = {"triggers", "highlights", "watchouts", "outlook"}
+_CITE_RE = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
 
 # (key, query, tavily topic, recency days)
 _QUERIES: list[tuple[str, str, str, int]] = [
@@ -106,7 +111,8 @@ async def generate_market_pulse(focus: str | None = None) -> dict:
                   "budget": websearch.budget_status()}
         return result
 
-    pulse = await _synthesise(context)
+    valid_citations = set(range(1, len(registry.footnotes()) + 1))
+    pulse = await _synthesise(context, valid_citations)
     result = {
         "enabled": True,
         "pulse": pulse,
@@ -118,7 +124,59 @@ async def generate_market_pulse(focus: str | None = None) -> dict:
     return result
 
 
-async def _synthesise(context: list[str]) -> dict | None:
+def _citations_ok(text: str, valid: set[int]) -> bool:
+    """True only if the item cites at least one source and every cited number is real."""
+    nums: list[int] = []
+    for grp in _CITE_RE.findall(text):
+        nums += [int(p.strip()) for p in grp.split(",") if p.strip().isdigit()]
+    return bool(nums) and all(n in valid for n in nums)
+
+
+def _clean_pulse(data: object, valid: set[int]) -> dict | None:
+    """Trust nothing from the model: validate shape, tones, kinds, and citation integrity.
+
+    Drops any item that invents a citation number not backed by a real source, so a
+    hallucinated [5] can never reach the UI. Returns None if nothing usable survives.
+    """
+    if not isinstance(data, dict):
+        return None
+    mood = data.get("mood")
+    if not isinstance(mood, dict) or not mood.get("label") or not mood.get("summary"):
+        return None
+    clean_mood = {
+        "label": str(mood["label"]).strip()[:60],
+        "tone": mood.get("tone") if mood.get("tone") in _VALID_TONES else "neutral",
+        "summary": str(mood["summary"]).strip()[:300],
+    }
+
+    sections: list[dict] = []
+    for sec in data.get("sections", []) or []:
+        if not isinstance(sec, dict) or sec.get("kind") not in _VALID_KINDS:
+            continue
+        items: list[dict] = []
+        for it in (sec.get("items") or []):
+            if not isinstance(it, dict):
+                continue
+            text = str(it.get("text", "")).strip()
+            if not text or not _citations_ok(text, valid):
+                continue
+            items.append({
+                "text": text[:400],
+                "tone": it.get("tone") if it.get("tone") in _VALID_TONES else "neutral",
+            })
+            if len(items) >= 4:
+                break
+        if items:
+            sections.append({
+                "kind": sec["kind"],
+                "title": str(sec.get("title", "")).strip()[:80],
+                "items": items,
+            })
+
+    return {"mood": clean_mood, "sections": sections} if sections else None
+
+
+async def _synthesise(context: list[str], valid_citations: set[int]) -> dict | None:
     import json
 
     from app.agent.llm_provider import get_chat_model
@@ -131,9 +189,6 @@ async def _synthesise(context: list[str]) -> dict | None:
         start, end = text.find("{"), text.rfind("}")
         if start == -1 or end == -1:
             return None
-        data = json.loads(text[start : end + 1])
-        if not isinstance(data, dict) or "mood" not in data:
-            return None
-        return data
+        return _clean_pulse(json.loads(text[start : end + 1]), valid_citations)
     except Exception:
         return None
