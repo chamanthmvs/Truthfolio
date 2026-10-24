@@ -133,6 +133,21 @@
     .card h3, .card h4 { margin-top: 0; }
     .card p:last-child { margin-bottom: 0; }
     .card .tag { display: inline-block; margin-bottom: 10px; color: var(--green); font-size: 10px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+    .concept {
+      margin: 22px 0; overflow: hidden; border: 1px solid #d5e0d8;
+      border-radius: 17px; background: #fffefa;
+    }
+    .concept-head {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 13px 17px; background: #eaf4ed; color: #174b3c;
+    }
+    .concept-head strong { font: 700 16px/1.3 Georgia, serif; }
+    .concept-head span { color: #5e7768; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .concept-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .concept-item { min-height: 100px; padding: 14px 17px; border-top: 1px solid #e6ebe4; }
+    .concept-item:nth-child(odd) { border-right: 1px solid #e6ebe4; }
+    .concept-item b { display: block; margin-bottom: 5px; color: #31564b; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; }
+    .concept-item p { margin: 0; color: #4b5d55; font-size: 13px; line-height: 1.58; }
     .soft-green { background: #f0f8f2; border-color: #d2e6d9; }
     .soft-blue { background: #f3f7fc; border-color: #d7e2ef; }
     .soft-gold { background: #fff9ec; border-color: #ecdfbf; }
@@ -235,6 +250,8 @@
       .chapter-head { grid-template-columns: 42px 1fr; gap: 11px; }
       .chapter-num { width: 40px; height: 40px; border-radius: 12px; }
       .grid.two, .grid.three { grid-template-columns: 1fr; }
+      .concept-grid { grid-template-columns: 1fr; }
+      .concept-item:nth-child(odd) { border-right: 0; }
       .flow-row { grid-template-columns: 1fr; gap: 10px; }
       .flow-step { min-height: auto; text-align: left; }
       .flow-step:not(:last-child):after { top: auto; right: 14px; bottom: -17px; transform: rotate(90deg); }
@@ -255,6 +272,7 @@
       .chapter:first-of-type { break-before: auto; }
       .card, .diagram, .code-card, .callout, .table-wrap { break-inside: avoid; box-shadow: none; }
       .code-card, .code-head, .hero, .chapter-num, th { print-color-adjust: exact; }
+      .diagram, .table-wrap, pre { overflow: visible; }
       pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 8pt; }
       a { color: inherit; text-decoration: none; }
       .footer { break-before: page; }
@@ -273,6 +291,8 @@
         <a href="#start">Start here</a>
         <a href="#chapter-1">1 · The backend map</a>
         <a href="#chapter-2">2 · App startup and FastAPI</a>
+        <a class="sub" href="#asgi-deep-dive">ASGI, from first principles</a>
+        <a class="sub" href="#cors-deep-dive">CORS, why browsers ask</a>
         <a href="#chapter-3">3 · Requests, routes, validation</a>
         <a href="#chapter-4">4 · Fund directory and NAV data</a>
         <a href="#chapter-5">5 · Cache and outside services</a>
@@ -283,6 +303,7 @@
         <a href="#chapter-10">10 · CAS statement import</a>
         <a href="#chapter-11">11 · Optional AI and research</a>
         <a href="#chapter-12">12 · Operations and boundaries</a>
+        <a class="sub" href="#async-deep-dive">Async, await, and concurrency</a>
         <a href="#appendix">Appendix · terms and map</a>
       </nav>
       <div class="side-note">
@@ -330,8 +351,9 @@
           <div class="icon">📖</div>
           <p><strong>How to use this book.</strong> Read in order for the full journey, or jump to a chapter
             from the contents. Each code panel is a real excerpt from this repository; surrounding
-            notes explain what it does, why it exists, and what calls it. Some excerpts are shortened
-            only to keep the important lines together. Use the source link to see the complete file.</p>
+            notes explain what a concept means, why it exists, how Truthfolio uses it, and its
+            limitations or cautions. Some excerpts are shortened only to keep the important lines
+            together. Use the source link to see the complete file.</p>
         </div>
 
         <section class="chapter" id="chapter-1">
@@ -398,6 +420,24 @@
             <article class="card soft-blue"><span class="tag">agent/</span><h3>The coordinator</h3><p>Runs a defined sequence of specialist functions. The sequence is written in Python rather than invented by an AI.</p></article>
             <article class="card soft-gold"><span class="tag">analysis/ + data/</span><h3>The workshop</h3><p>Data code finds and cleans information; analysis code turns that information into metrics and summaries.</p></article>
           </div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · What is a backend?</strong><span>the other side of the request</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>What it is</b><p>The backend is the program running on a server. It receives requests from another program, performs work or retrieves data, and sends a response.</p></div>
+              <div class="concept-item"><b>Why we use it</b><p>Fund calculations and data access need one trusted place to run. A browser should not have to contain all the calculation rules or hold private provider keys.</p></div>
+              <div class="concept-item"><b>How this project uses it</b><p>The browser sends HTTP requests to the Python FastAPI service. The service finds a scheme, fetches public NAV data when required, calculates results, and responds with JSON or SSE.</p></div>
+              <div class="concept-item"><b>Boundary to remember</b><p>The backend is not a database here. It does not create accounts or permanently save user portfolios. A request is work performed by a running service, not a stored user record.</p></div>
+            </div>
+          </div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · API, HTTP, and JSON</strong><span>the shared language</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>API</b><p>An agreed menu of addresses and actions. For example, <code>GET /api/search</code> means “search the official fund directory.”</p></div>
+              <div class="concept-item"><b>HTTP</b><p>The request-and-response rules used to communicate across the network. A request includes an action (method), an address (path), headers, and sometimes a body.</p></div>
+              <div class="concept-item"><b>JSON</b><p>A text format for named values and lists. It is like a labeled parcel: <code>{"scheme_code":"123"}</code> says what the value means, not just what the value is.</p></div>
+              <div class="concept-item"><b>Why these fit together</b><p>The API defines the menu, HTTP carries a request to a menu item, and JSON commonly carries the structured input/output. File upload uses multipart instead because it can carry file bytes and ordinary fields together.</p></div>
+            </div>
+          </div>
           <div class="callout"><strong>First important boundary:</strong><p>“Agent” describes the coordination layer. It does not mean an LLM makes the standard health score or verdict. Those are calculated by ordinary Python rules.</p></div>
           <div class="chapter-end">End of chapter 1</div>
         </section>
@@ -413,8 +453,19 @@
             <article class="card"><span class="tag">FastAPI</span><h3>The request handler</h3><p>FastAPI matches a request to a route, validates declared inputs, runs the handler, and builds the HTTP response.</p></article>
           </div>
           <p><strong>ASGI</strong> is the agreed interface between them. Imagine a plug and socket: Uvicorn and FastAPI can connect because both follow the same standard.</p>
+          <div class="concept" id="asgi-deep-dive">
+            <div class="concept-head"><strong>Concept · ASGI, from first principles</strong><span>the connection contract</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>What the letters mean</b><p>ASGI stands for Asynchronous Server Gateway Interface. It is a Python standard describing how an application server and a Python web app pass HTTP work to one another.</p></div>
+              <div class="concept-item"><b>Picture it</b><p>Imagine two people using a courier service. The courier knows how to deliver a package; the receiving office knows how to process it. ASGI is the agreed delivery procedure between those two programs.</p></div>
+              <div class="concept-item"><b>What is passed</b><p>The server gives the app request details (method, URL, headers, body) and a way to receive/send messages. The app returns response status, headers, and body data through that interface.</p></div>
+              <div class="concept-item"><b>Why “asynchronous” matters</b><p>While one request waits for a network reply, an async app can work on another ready request instead of keeping the whole server idle. It does not make one CPU-heavy calculation magically faster.</p></div>
+              <div class="concept-item"><b>How Truthfolio uses it</b><p>Uvicorn serves <code>app.main:app</code>. FastAPI is ASGI-compatible. Route functions use <code>async def</code> and <code>await</code> around network I/O and other asynchronous work.</p></div>
+              <div class="concept-item"><b>What it is not</b><p>ASGI is not an API endpoint, a server product, or a library that calculates funds. It is the interface that lets the server and app cooperate. You rarely call it directly in route code.</p></div>
+            </div>
+          </div>
           <div class="code-card">
-            <div class="code-head"><span>backend/app/main.py · application creation</span><a href="../backend/app/main.py">Open source file ↗</a></div>
+            <div class="code-head"><span>backend/app/main.py · application creation</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/main.py">Open source file ↗</a></div>
             <pre><code>def create_app() -&gt; FastAPI:
     settings = get_settings()
     app = FastAPI(
@@ -438,17 +489,50 @@ app = create_app()</code></pre>
           <div class="explain"><b>2 · App object</b><span><code>FastAPI(...)</code> creates the application object that Uvicorn will serve.</span></div>
           <div class="explain"><b>3 · Middleware</b><span>CORS rules add browser-readable permission headers to responses. The browser checks those headers; they are not login protection.</span></div>
           <div class="explain"><b>4 · Router</b><span>Adding the router with <code>prefix="/api"</code> gives the handlers their public paths, such as <code>/api/search</code>.</span></div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Application factory and import time</strong><span>building the app object</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Factory</b><p><code>create_app()</code> is a function that constructs and returns a configured FastAPI application. Factories keep setup in one place and make tests/deployments easier to configure.</p></div>
+              <div class="concept-item"><b>Why the final assignment matters</b><p><code>app = create_app()</code> runs when Python imports this module. Uvicorn’s <code>app.main:app</code> means “import <code>app.main</code>, then serve the object named <code>app</code>.”</p></div>
+              <div class="concept-item"><b>Router</b><p>A router groups related routes, much like chapters group related pages. The prefix is added once, so the code can declare <code>/search</code> while the public path becomes <code>/api/search</code>.</p></div>
+              <div class="concept-item"><b>Caution</b><p>Import-time work should stay small and predictable. Creating the application is not the same as processing a request; network warm-up is handled by the lifespan function.</p></div>
+            </div>
+          </div>
           <h3>What CORS actually does</h3>
           <p>A browser calls an address from a web page. If the page and API have different origins (protocol, host, or port), the browser asks whether the page is allowed to read the API response. Truthfolio’s CORS middleware configures the response that answers that browser rule.</p>
           <div class="grid two">
             <article class="card soft-green"><h3>It helps with</h3><p>Allowing a known browser-based website—such as the local site at port 3000—to read responses from the API at port 8077.</p></article>
             <article class="card soft-rose"><h3>It does not do</h3><p>Authenticate a user, require an API key, or block command-line tools and other servers from calling the API.</p></article>
           </div>
+          <div class="concept" id="cors-deep-dive">
+            <div class="concept-head"><strong>Concept · CORS, why browsers ask</strong><span>permission for a web page to read</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>What is CORS?</b><p>Cross-Origin Resource Sharing: a browser-and-server mechanism for declaring which website origins may read a response from another origin.</p></div>
+              <div class="concept-item"><b>What is an origin?</b><p>An origin is the combination of protocol, host, and port. <code>http://localhost:3000</code> and <code>http://localhost:8077</code> are different origins because the port differs.</p></div>
+              <div class="concept-item"><b>Why CORS exists</b><p>Browsers protect a person’s logged-in sessions and data. A page from one site should not automatically be able to read private responses from another site just because both are open in the same browser.</p></div>
+              <div class="concept-item"><b>What middleware does</b><p>Middleware is helper code wrapped around request/response handling. FastAPI’s CORS middleware adds response headers describing which origins, methods, and headers the browser may use.</p></div>
+              <div class="concept-item"><b>The browser makes the decision</b><p>The server provides the permission information. The browser checks it and decides whether JavaScript on the calling page may read the response. CORS is not a network firewall.</p></div>
+              <div class="concept-item"><b>What “preflight” means</b><p>For some cross-origin requests, the browser first sends an <code>OPTIONS</code> request asking “would this method and these headers be allowed?” If the reply permits it, the browser sends the real request.</p></div>
+              <div class="concept-item"><b>Truthfolio’s current setting</b><p>Origins default to the two localhost port-3000 addresses. Methods and headers use <code>*</code>; credentials are enabled. Production should set the actual trusted website origins.</p></div>
+              <div class="concept-item"><b>Why credentials are separate</b><p>Credentials are browser authentication material such as cookies. Allowing them only affects browser cross-origin behavior; it does not create accounts, sessions, or authentication logic in this backend.</p></div>
+              <div class="concept-item"><b>What CORS cannot protect</b><p>A script, command-line client, mobile app, or another server can call the API without obeying browser CORS rules. Sensitive operations need real server-side authentication and authorization.</p></div>
+            </div>
+          </div>
+          <div class="callout danger"><strong>Configuration caution:</strong><p>Allow only the website origins that should read this API in production. Broad methods/headers and credentials make a careful origin list especially important. CORS does not replace authentication, rate limits, or input validation.</p></div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Lifespan and startup</strong><span>work around the app’s lifetime</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>What it is</b><p>A lifespan function runs startup work before requests are served and can run shutdown cleanup when the application stops.</p></div>
+              <div class="concept-item"><b>Why use it</b><p>Shared resources can be prepared once per application run instead of repeatedly for every request.</p></div>
+              <div class="concept-item"><b>Truthfolio use</b><p>It tries to load the AMFI scheme master early. This is a warm-up so the first search is less likely to wait for that initial download and parse.</p></div>
+              <div class="concept-item"><b>Caution</b><p>The warm-up failure is intentionally ignored so the server can start. That also means “server started” does not prove AMFI is currently reachable; a real route may still fail later.</p></div>
+            </div>
+          </div>
           <div class="callout"><strong>Cookie note:</strong><p>The app enables credentials in CORS, which permits browsers to include credential information when otherwise configured to do so. This backend does not thereby gain accounts or a login system.</p></div>
           <h3>Startup: warm one reference book</h3>
           <p>The FastAPI <em>lifespan</em> function runs startup work before the app serves requests. Truthfolio asks AMFI for its scheme directory early so the first search is usually faster. If that early attempt fails, the app still starts and a later request can try loading it again. NAV histories are not all downloaded at startup.</p>
           <div class="code-card">
-            <div class="code-head"><span>backend/app/main.py · startup lifecycle</span><a href="../backend/app/main.py">Open source file ↗</a></div>
+            <div class="code-head"><span>backend/app/main.py · startup lifecycle</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/main.py">Open source file ↗</a></div>
             <pre><code>@asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
@@ -474,7 +558,7 @@ async def lifespan(app: FastAPI):
           <h3>Validation as a form checker</h3>
           <p>A request model is a Python description of allowed fields and values. Pydantic reads it and rejects invalid data before the route starts the main work.</p>
           <div class="code-card">
-            <div class="code-head"><span>backend/app/models/schemas.py · request shapes</span><a href="../backend/app/models/schemas.py">Open source file ↗</a></div>
+            <div class="code-head"><span>backend/app/models/schemas.py · request shapes</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/models/schemas.py">Open source file ↗</a></div>
             <pre><code>class ReviewRequest(BaseModel):
     scheme_code: str
     units: float | None = Field(None, ge=0)
@@ -501,7 +585,7 @@ class PortfolioRequest(BaseModel):
           <h3>Follow one real route</h3>
           <p>This small route accepts a fund code, looks up the official scheme, asks the review function to do the analysis, and shapes the final response.</p>
           <div class="code-card">
-            <div class="code-head"><span>backend/app/api/routes.py · review entry path (excerpt)</span><a href="../backend/app/api/routes.py">Open source file ↗</a></div>
+            <div class="code-head"><span>backend/app/api/routes.py · review entry path (excerpt)</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/api/routes.py">Open source file ↗</a></div>
             <pre><code>async def _run_review(scheme_code: str, units=None, invested_amount=None):
     master = await amfi.get_master()
     scheme = master.get(scheme_code)
@@ -526,7 +610,97 @@ class PortfolioRequest(BaseModel):
             <div class="timeline-item"><div class="timeline-dot">3</div><div><strong>Run the review.</strong><p>The official name, category, and fund house are passed to the coordinator.</p></div></div>
             <div class="timeline-item"><div class="timeline-dot">4</div><div><strong>Build a stable response.</strong><p><code>assemble_review()</code> shapes internal state; <code>ReviewResponse</code> describes the output.</p></div></div>
           </div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Request, route, response, and status code</strong><span>the API transaction</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Request</b><p>A message from a caller. It has an HTTP method, a path, headers, and possibly a query string or request body.</p></div>
+              <div class="concept-item"><b>Route</b><p>A declared pairing between a method/path and a Python function. For example, <code>@router.post("/review")</code> maps POST requests to the review handler.</p></div>
+              <div class="concept-item"><b>Response</b><p>The server’s answer: a status code, response headers, and a body. The body may be JSON or an event stream.</p></div>
+              <div class="concept-item"><b>Status code</b><p>A compact signal about the request outcome: 200 success, 404 not found, 422 invalid input, 429 limit reached, 502 outside service failed, 503 feature unavailable, 500 unexpected server failure.</p></div>
+              <div class="concept-item"><b>Why use status codes?</b><p>They let callers distinguish success from different kinds of failure without trying to guess from a sentence in the body.</p></div>
+              <div class="concept-item"><b>Caution</b><p>A 200 response means the HTTP operation succeeded, not that an investment result is guaranteed or future performance is known. Status codes describe the software interaction, not financial certainty.</p></div>
+            </div>
+            <div class="concept">
+              <div class="concept-head"><strong>Concept · Reading the Python marks in the examples</strong><span>the small symbols have jobs</span></div>
+              <div class="concept-grid">
+                <div class="concept-item"><b>Import</b><p><code>from fastapi import APIRouter</code> means “use the APIRouter tool defined in the FastAPI package.” Imports connect one file to another library or project module.</p></div>
+                <div class="concept-item"><b>Decorator</b><p><code>@router.post("/review")</code> is a decorator: a marker that tells FastAPI to register the function below it as the handler for POST requests to that route.</p></div>
+                <div class="concept-item"><b>Type annotation</b><p><code>scheme_code: str</code> documents that a value should be text. An annotation helps readers and tools; by itself it is not always runtime validation. Pydantic models provide the actual request checks used here.</p></div>
+                <div class="concept-item"><b>Return value</b><p><code>return result</code> hands a value back to the caller function or framework. FastAPI converts ordinary return values into an HTTP response according to the route setup.</p></div>
+                <div class="concept-item"><b>Exception</b><p><code>raise HTTPException(404, ...)</code> stops the normal path and signals an HTTP error response. <code>try/except</code> can catch a known error and map it to a deliberate response.</p></div>
+                <div class="concept-item"><b>Why these patterns?</b><p>They separate declaration (route and input shape), normal work (function body), and failure behavior (exceptions), which makes API behavior easier to trace.</p></div>
+              </div>
+            </div>
+          </div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Input model and output model</strong><span>form rules in code</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Input model</b><p>A Pydantic <code>BaseModel</code> describes the fields a caller may submit and rules for each field. FastAPI uses it to parse and validate incoming data.</p></div>
+              <div class="concept-item"><b>Output model</b><p>A response model describes the shape the route promises to return. FastAPI can validate and document that response contract too.</p></div>
+              <div class="concept-item"><b>Why validate early?</b><p>Bad shapes and impossible ranges should be rejected before network requests and calculations begin. This reduces confusing downstream errors.</p></div>
+              <div class="concept-item"><b>What validation cannot prove</b><p>A string can have the right type but refer to a nonexistent AMFI code. Data-dependent facts must be checked with the relevant directory or service.</p></div>
+            </div>
+          </div>
+          <div class="concept" id="async-deep-dive">
+            <div class="concept-head"><strong>Concept · Async, await, and concurrency</strong><span>waiting without blocking everything</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>What “async” means</b><p>An asynchronous function can pause at an I/O wait (such as a network response) and let the event loop run another ready task.</p></div>
+              <div class="concept-item"><b>What <code>await</code> means</b><p>“Pause this coroutine until this operation is ready; meanwhile, allow other coroutines to run.” It does not mean “start a new thread.”</p></div>
+              <div class="concept-item"><b>Why use it here?</b><p>Fund and peer reviews wait on public HTTP services. Async I/O allows one service process to manage multiple waiting requests more efficiently than blocking at every network wait.</p></div>
+              <div class="concept-item"><b>Concurrency vs parallel CPU work</b><p>Concurrency means several jobs can make progress over overlapping time. Parallelism means work runs at the same instant on multiple CPU cores. Async network I/O mainly provides concurrency.</p></div>
+              <div class="concept-item"><b>Blocking work exception</b><p>CAS PDF parsing is ordinary blocking work, so its route uses <code>asyncio.to_thread()</code> to run it on a worker thread instead of blocking the event loop.</p></div>
+              <div class="concept-item"><b>Caution</b><p>CPU-heavy Python work inside an async route can still hold up the event loop. Also, launching many tasks does not itself limit external traffic; Truthfolio separately uses a semaphore for NAV downloads.</p></div>
+            </div>
+          </div>
           <div class="callout"><strong>Why a response builder?</strong><p>Several paths can produce a fund review: a direct request, a streaming request, or a portfolio holding. A shared assembler helps them return a consistent review shape.</p></div>
+          <h3>The public route map</h3>
+          <p>The backend currently has 17 API routes, all under <code>/api</code>. A method and path together identify one handler. These groups make it easier to scan than one long unbroken list.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Area</th><th>Method and path</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td>Service</td><td><code>GET /api/health</code></td><td>Respond that the backend process is up.</td></tr>
+              <tr><td>Service</td><td><code>GET /api/capabilities</code></td><td>Report which optional features appear configured.</td></tr>
+              <tr><td>Search</td><td><code>GET /api/search</code></td><td>Search official AMFI scheme names.</td></tr>
+              <tr><td>Fund review</td><td><code>POST /api/review</code></td><td>Return one completed fund review.</td></tr>
+              <tr><td>Fund review</td><td><code>GET /api/review/stream</code></td><td>Stream fund-review progress and final result.</td></tr>
+              <tr><td>Fund tools</td><td><code>GET /api/research</code></td><td>Explicitly request cited web research.</td></tr>
+              <tr><td>Fund tools</td><td><code>GET /api/recommendations</code></td><td>Return qualifying same-category research leads.</td></tr>
+              <tr><td>Fund tools</td><td><code>POST /api/fund/chat</code></td><td>Ask about supplied one-fund analysis context.</td></tr>
+              <tr><td>Fund tools</td><td><code>GET /api/insights</code></td><td>Generate fund insight cards.</td></tr>
+              <tr><td>Fund data</td><td><code>GET /api/fund/history</code></td><td>Return rebased NAV history and statistics.</td></tr>
+              <tr><td>Market</td><td><code>GET /api/market-chart</code></td><td>Return deterministic index-fund proxy history.</td></tr>
+              <tr><td>Market</td><td><code>GET /api/market-pulse</code></td><td>Return optional cited market commentary.</td></tr>
+              <tr><td>Portfolio</td><td><code>POST /api/insights/portfolio</code></td><td>Generate cards from submitted portfolio summary.</td></tr>
+              <tr><td>Portfolio</td><td><code>POST /api/portfolio/chat</code></td><td>Ask about supplied portfolio analysis context.</td></tr>
+              <tr><td>Portfolio</td><td><code>POST /api/portfolio/import</code></td><td>Parse a CAS PDF and prepare matched holdings.</td></tr>
+              <tr><td>Portfolio</td><td><code>POST /api/portfolio</code></td><td>Analyze holdings and return final aggregate.</td></tr>
+              <tr><td>Portfolio</td><td><code>POST /api/portfolio/stream</code></td><td>Stream holding completions and final aggregate.</td></tr>
+            </tbody>
+          </table></div>
+          <h3>What each endpoint accepts and returns</h3>
+          <p>For a <code>GET</code> route, caller-supplied values usually appear in the URL, after <code>?</code>. For example, <code>/api/search?q=flexi&amp;limit=12</code>. For a <code>POST</code> route, structured values usually travel in a JSON body; file import uses a multipart form instead.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Endpoint</th><th>Caller sends</th><th>Backend returns / important behavior</th></tr></thead>
+            <tbody>
+              <tr><td><code>GET /api/health</code></td><td>Nothing.</td><td><code>{"status":"ok"}</code>. Confirms the process answers; it does not test every external service.</td></tr>
+              <tr><td><code>GET /api/capabilities</code></td><td>Nothing.</td><td>Boolean flags for chat, research, market pulse, and AI insights based on configured credentials.</td></tr>
+              <tr><td><code>GET /api/search</code></td><td>Required <code>q</code> of at least 2 characters; optional <code>limit</code> from 1–30, default 12.</td><td>Echoes the query and returns matching official scheme code, name, fund house, category, and type.</td></tr>
+              <tr><td><code>POST /api/review</code></td><td>JSON: required <code>scheme_code</code>; optional non-negative <code>units</code> and <code>invested_amount</code>.</td><td>One complete review: metrics, peer ranks, score, verdict, evidence, narrative, caveats, and progress steps.</td></tr>
+              <tr><td><code>GET /api/review/stream</code></td><td>Required query parameter <code>scheme_code</code>.</td><td>SSE progress <code>step</code> events, then a final <code>result</code>. A missing scheme or caught graph error is an <code>error</code> event; an uncaught failure may end the stream.</td></tr>
+              <tr><td><code>GET /api/research</code></td><td>Required query parameter <code>scheme_code</code>.</td><td>Cited evidence, numbered source notes, and search-budget status. If LLM or Tavily credentials are missing, returns <code>enabled:false</code> and no evidence.</td></tr>
+              <tr><td><code>GET /api/recommendations</code></td><td>Required query parameter <code>scheme_code</code>.</td><td>Deterministic same-category alternatives that meet the code’s comparison rules; these are research leads, not personal advice.</td></tr>
+              <tr><td><code>POST /api/fund/chat</code></td><td>JSON with one fund’s supplied <code>context</code> and alternating <code>messages</code>; at most 5 user questions and 50 KB total request.</td><td>A short <code>answer</code>. Requires an LLM key; the daily counter is checked before the provider call.</td></tr>
+              <tr><td><code>GET /api/insights</code></td><td>Required query parameter <code>scheme_code</code>.</td><td>Insight cards and an <code>llm_used</code> flag; results can use the deterministic template path.</td></tr>
+              <tr><td><code>GET /api/fund/history</code></td><td>Required query parameter <code>scheme_code</code>.</td><td>Factual growth-of-₹100 history and summary statistics derived from the fund’s NAV series.</td></tr>
+              <tr><td><code>GET /api/market-chart</code></td><td>Nothing.</td><td>Index-fund NAV proxy history and explicitly illustrative scenario bands; not a forecast.</td></tr>
+              <tr><td><code>GET /api/market-pulse</code></td><td>Optional query parameter <code>focus</code>.</td><td>Optional cited market commentary; uses research/search credentials and can report unavailable when they are absent.</td></tr>
+              <tr><td><code>POST /api/insights/portfolio</code></td><td>JSON object with required non-empty <code>summary</code> and optional <code>holdings</code>.</td><td>Portfolio insight cards generated from an already-computed portfolio summary; it does not perform the portfolio review.</td></tr>
+              <tr><td><code>POST /api/portfolio/chat</code></td><td>JSON with portfolio <code>context</code>, 1–40 holdings, and alternating messages; at most 5 questions and 50 KB.</td><td>A short <code>answer</code> grounded in the submitted analysis. Requires an LLM key.</td></tr>
+              <tr><td><code>POST /api/portfolio/import</code></td><td>Multipart form with required PDF <code>file</code> and optional <code>password</code>.</td><td>Parsed statement status, matched holdings, and unmatched names. Import prepares data; it does not run the review.</td></tr>
+              <tr><td><code>POST /api/portfolio</code></td><td>JSON <code>holdings</code> list with 1–40 items; each has <code>scheme_code</code>, positive <code>units</code>, and positive <code>avg_nav</code>.</td><td>Per-fund reviews, aggregate summary, and count of holdings that could not be analyzed.</td></tr>
+              <tr><td><code>POST /api/portfolio/stream</code></td><td>The same JSON holdings body as <code>/api/portfolio</code>.</td><td>SSE <code>start</code>, one <code>holding</code> per completed task, then aggregate <code>result</code> or <code>error</code>.</td></tr>
+            </tbody>
+          </table></div>
           <div class="chapter-end">End of chapter 3</div>
         </section>
 
@@ -535,6 +709,7 @@ class PortfolioRequest(BaseModel):
             <div class="chapter-num">04</div>
             <div><h2>Finding the fund and loading NAV</h2><p>AMFI answers “which official scheme is this?” mfapi.in answers “what has its published NAV history been?”</p></div>
           </div>
+          <p><strong>AMFI</strong> is the Association of Mutual Funds in India. It publishes the directory used here to resolve official scheme identities. <strong>NAV</strong> means Net Asset Value: the published per-unit value for a mutual-fund scheme. Truthfolio requests dated NAV observations from the separate <code>mfapi.in</code> service; it does not ask an LLM to make up missing prices.</p>
           <div class="grid two">
             <article class="card soft-green"><span class="tag">AMFI</span><h3>The official directory</h3><p>Its feed lists scheme codes, scheme names, fund houses, categories, plan/option details, and ISIN identifiers.</p></article>
             <article class="card soft-blue"><span class="tag">mfapi.in</span><h3>The historical values</h3><p>Its per-scheme response contains NAV observations with dates. The backend turns them into ordered points.</p></article>
@@ -553,7 +728,7 @@ class PortfolioRequest(BaseModel):
           <h3>A NAV point and a NAV series</h3>
           <p><code>NavPoint</code> is one dated observation. <code>NavSeries</code> contains a scheme’s metadata and points sorted oldest to newest, and exposes useful values such as the start date, end date, and latest NAV.</p>
           <div class="code-card">
-            <div class="code-head"><span>backend/app/data/navapi.py · parsing and ordering (excerpt)</span><a href="../backend/app/data/navapi.py">Open source file ↗</a></div>
+            <div class="code-head"><span>backend/app/data/navapi.py · parsing and ordering (excerpt)</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/data/navapi.py">Open source file ↗</a></div>
             <pre><code>for row in raw:
     try:
         d = datetime.strptime(row["date"], "%d-%m-%Y").date()
@@ -573,6 +748,63 @@ points.sort(key=lambda p: p.on)</code></pre>
           <h3>Make outside calls asynchronous and bounded</h3>
           <p>The client uses <code>httpx.AsyncClient</code> to perform an asynchronous HTTP request and Tenacity to retry failures up to three attempts. A shared semaphore allows at most 16 NAV downloads at once in this running backend copy.</p>
           <div class="callout"><strong>Why cap simultaneous downloads?</strong><p>A portfolio can trigger many holding reviews, and each review can compare peer funds. The semaphore is a traffic light that prevents an uncontrolled burst of requests to the NAV service.</p></div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Dataclasses and “clean” data objects</strong><span>give values a useful shape</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>What a dataclass is</b><p>A Python helper for making a class whose main job is to hold related fields, such as a scheme code and name or one date and NAV value.</p></div>
+              <div class="concept-item"><b>Why use one?</b><p>Instead of passing anonymous tuples like <code>("123", 100.5)</code>, later code can say <code>point.nav</code> and <code>point.on</code>. Named fields are easier to read and harder to mix up.</p></div>
+              <div class="concept-item"><b>Truthfolio examples</b><p><code>Scheme</code>, <code>NavPoint</code>, and <code>NavSeries</code> give AMFI and NAV data a predictable internal shape after parsing.</p></div>
+              <div class="concept-item"><b>What it does not do</b><p>A dataclass does not automatically validate external data. Parsing code still has to convert values and discard malformed rows before creating reliable objects.</p></div>
+            </div>
+          </div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Fuzzy search and official identifiers</strong><span>helpful matching without guessing identity</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Fuzzy search</b><p>A matching method that can tolerate partial or reordered words. It helps when a person types a shortened or imperfect fund name.</p></div>
+              <div class="concept-item"><b>Why use it?</b><p>Official scheme names can be long and contain plan/option wording. Exact whole-string matching would make search unnecessarily brittle.</p></div>
+              <div class="concept-item"><b>How this code narrows results</b><p>RapidFuzz proposes candidates; the code also checks distinctive query tokens, groups plan variants, and prefers a Direct-Growth scheme where available.</p></div>
+              <div class="concept-item"><b>Caution</b><p>A fuzzy score is not proof of identity. The backend returns the official AMFI code and checks that code on later review requests instead of trusting the display name as an identifier.</p></div>
+            </div>
+          </div>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/data/amfi.py · search precision gate</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/data/amfi.py">Open source file ↗</a></div>
+            <pre><code>def passes_gate(text: str) -&gt; bool:
+    if not meaningful:
+        return True
+    present = sum(1 for token in meaningful if token in text)
+    return present / len(meaningful) &gt;= 0.6
+
+matches = process.extract(
+    query, corpus, scorer=fuzz.token_set_ratio,
+    limit=limit * 6, score_cutoff=45,
+)</code></pre>
+          </div>
+          <p>The fuzzy matcher first proposes candidates (score at least 45, with up to six times the requested result count). The precision gate then requires at least 60% of the user’s meaningful words to appear in the candidate text. Finally, the code collapses plan/option duplicates and gives Direct and Growth variants preference points. These are search-ranking rules, not claims that one variant is right for every investor.</p>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Retry, timeout, and semaphore</strong><span>network calls need guardrails</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Timeout</b><p>The maximum time to wait for one outside request. A timeout prevents a request from waiting forever for a server that is not responding.</p></div>
+              <div class="concept-item"><b>Retry</b><p>Try a failed operation again. Truthfolio’s NAV fetch is configured for up to three attempts with increasing waits between attempts.</p></div>
+              <div class="concept-item"><b>Semaphore</b><p>A shared counter limiting how many NAV fetch tasks may enter the network section at once; here the limit is 16.</p></div>
+              <div class="concept-item"><b>Why combine them?</b><p>Timeouts bound one wait, retries tolerate temporary failures, and the semaphore controls bursts. They solve different problems, so one is not a substitute for another.</p></div>
+              <div class="concept-item"><b>Trade-off</b><p>Retries can increase latency and repeat load if a service is unhealthy. The attempt count is capped; callers should still be prepared for the final request to fail.</p></div>
+              <div class="concept-item"><b>Scope limit</b><p>The semaphore is in this Python process, not a company-wide traffic controller. Several replicas can each have up to their own limit.</p></div>
+            </div>
+          </div>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/data/navapi.py · retry and concurrency limit</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/data/navapi.py">Open source file ↗</a></div>
+            <pre><code>@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=0.5, max=4))
+async def _fetch(code: str) -&gt; dict:
+    ...
+
+if cached is None:
+    async with _FETCH_SEMAPHORE:
+        payload = await _fetch(code)</code></pre>
+          </div>
+          <div class="explain"><b><code>@retry</code></b><span>Wraps the fetch so a failed attempt can be repeated, but never more than three times.</span></div>
+          <div class="explain"><b><code>wait_exponential</code></b><span>Increases the wait between attempts, up to the configured maximum, rather than retrying rapidly in a tight loop.</span></div>
+          <div class="explain"><b><code>async with</code></b><span>Obtains one of the 16 semaphore slots before fetching, then releases it when the block finishes, including when the fetch raises an error.</span></div>
+          <div class="callout"><strong>Timeout is separate:</strong><p>The HTTP client also has a configured timeout. The retry decorator handles failures after an attempt; the timeout bounds how long that attempt can wait. Neither can guarantee that the external service is always available.</p></div>
           <div class="chapter-end">End of chapter 4</div>
         </section>
 
@@ -591,7 +823,7 @@ points.sort(key=lambda p: p.on)</code></pre>
           </div>
           <p>For NAV history, the module checks the JSON cache. A fresh entry is parsed; a missing or old entry triggers a request to mfapi.in. The cache TTL defaults to 12 hours for NAV. The AMFI directory defaults to 24 hours on disk.</p>
           <div class="code-card">
-            <div class="code-head"><span>backend/app/data/cache.py · TTL decision</span><a href="../backend/app/data/cache.py">Open source file ↗</a></div>
+            <div class="code-head"><span>backend/app/data/cache.py · TTL decision</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/data/cache.py">Open source file ↗</a></div>
             <pre><code>def read(key: str, ttl_seconds: float) -&gt; Any | None:
     path = _path_for(key)
     if not path.exists():
@@ -613,7 +845,48 @@ points.sort(key=lambda p: p.on)</code></pre>
               <tr><td>Fresh timestamp</td><td>Copy is within its allowed age.</td><td>Reuse stored data.</td></tr>
             </tbody>
           </table></div>
-          <div class="callout"><strong>What “best effort” means:</strong><p>Writing a cache copy is not allowed to break the actual request. If saving fails due to a file-system problem, the current request can still return the fetched data.</p></div>
+          <div class="callout"><strong>What “best effort” means:</strong><p>Writing a cache copy is not allowed to break the actual request. If saving fails due to a file-system problem, the current request can still return the fetched data. Reading invalid JSON text is treated as a miss; a valid JSON value with an unexpected shape is not fully guarded and may raise an error.</p></div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Cache key, TTL, cache hit, cache miss</strong><span>rules for reusing a copy</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Cache key</b><p>A label that says which saved result is being requested. For NAV, the key is built from the scheme code, so different schemes do not share the same saved history.</p></div>
+              <div class="concept-item"><b>TTL</b><p>“Time to live”: the maximum age for which a saved entry may be reused. Different features can choose different TTLs depending on how quickly their data changes.</p></div>
+              <div class="concept-item"><b>Cache hit</b><p>A valid, not-too-old entry exists. The module can reuse it rather than making the network call again.</p></div>
+              <div class="concept-item"><b>Cache miss</b><p>The file is absent, unreadable, contains invalid JSON text, or is past its TTL. The data module treats those cases as unavailable and may fetch a replacement.</p></div>
+              <div class="concept-item"><b>Why cache?</b><p>It can reduce response time and repeated calls to public/paid services. For Tavily, a hit can also avoid spending another search credit.</p></div>
+              <div class="concept-item"><b>What caching cannot guarantee</b><p>A fresh-by-clock copy may still be stale relative to a newly published value. TTL is a reuse policy, not a promise that the content is the latest possible data.</p></div>
+            </div>
+          </div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Why a local JSON file cache?</strong><span>simple and intentionally limited</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Why JSON?</b><p>Many data objects already consist of strings, numbers, lists, and dictionaries. JSON is a straightforward text format to save and read without adding a database dependency.</p></div>
+              <div class="concept-item"><b>Why local disk?</b><p>This project can reuse data within one backend instance with little setup. It is simple for development and a single long-running service.</p></div>
+              <div class="concept-item"><b>Trade-offs</b><p>Local files are not automatically shared between replicas, do not provide database transactions or query capabilities, and can disappear if the deployment uses temporary storage.</p></div>
+              <div class="concept-item"><b>Privacy and correctness caution</b><p>The cache is not encrypted user storage. Do not treat it as a place to store sensitive account data. Cache keys and TTLs must match the data being cached so one result cannot be reused for the wrong request.</p></div>
+            </div>
+          </div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Lock and “load once” behavior</strong><span>avoid duplicate first-time work</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>What a lock does</b><p>An async lock lets one coroutine at a time enter a protected section. Other coroutines wait until the lock is released.</p></div>
+              <div class="concept-item"><b>Why AMFI uses one</b><p>If several first requests arrive together with no master loaded, one request loads and parses it; the others wait and reuse the prepared copy instead of doing the same work simultaneously.</p></div>
+              <div class="concept-item"><b>Analogy</b><p>One person checks out the reference book from the desk; the next person waits a moment instead of ordering another copy at the same time.</p></div>
+              <div class="concept-item"><b>Scope</b><p>This lock only coordinates tasks inside the current Python process. It does not synchronize separate server replicas or separate machines.</p></div>
+            </div>
+          </div>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/data/amfi.py · memory check and async lock</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/data/amfi.py">Open source file ↗</a></div>
+            <pre><code>if _MASTER is not None and not force:
+    return _MASTER
+async with _lock:
+    if _MASTER is not None and not force:
+        return _MASTER
+    cached = None if force else cache.read(_MASTER_CACHE_KEY, ttl)</code></pre>
+          </div>
+          <div class="explain"><b>First check</b><span>The common case returns the already-built directory without waiting for a lock.</span></div>
+          <div class="explain"><b>Check again inside the lock</b><span>If two requests both saw “not loaded,” one loads it first. When the second request gets the lock, this second check lets it reuse the newly loaded directory.</span></div>
+          <div class="explain"><b><code>force</code></b><span>A forced refresh skips the memory and disk copies and downloads the AMFI directory again.</span></div>
           <h3>Cache is not database storage</h3>
           <ul>
             <li>The cache contains reusable public data and selected computed results.</li>
@@ -659,7 +932,7 @@ points.sort(key=lambda p: p.on)</code></pre>
           </figure>
           <h3>The plans are explicit data</h3>
           <div class="code-card">
-            <div class="code-head"><span>backend/app/agent/supervisor.py · task plans</span><a href="../backend/app/agent/supervisor.py">Open source file ↗</a></div>
+            <div class="code-head"><span>backend/app/agent/supervisor.py · task plans</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/agent/supervisor.py">Open source file ↗</a></div>
             <pre><code>PLANS = {
     "fund_review": [
         "gather_quant", "gather_peers", "build_evidence",
@@ -691,8 +964,39 @@ points.sort(key=lambda p: p.on)</code></pre>
             <article class="card"><h3>Analysis values</h3><p><code>metrics</code>, <code>qualitative</code>, <code>peers</code>, <code>evidence</code>, score, verdict, and narrative.</p></article>
             <article class="card"><h3>Control and progress</h3><p><code>task</code>, remaining <code>plan</code>, next-node name, progress <code>steps</code>, and whether optional AI was used.</p></article>
           </div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Graph, node, edge, supervisor</strong><span>the vocabulary behind LangGraph</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Graph</b><p>A set of steps and rules for moving between them. A flowchart is a useful picture of a graph.</p></div>
+              <div class="concept-item"><b>Node</b><p>One unit of work in the graph. In this project, a node is a Python function such as <code>gather_quant</code> or <code>synthesise</code>.</p></div>
+              <div class="concept-item"><b>Edge</b><p>A connection that says where control goes after a node. Each specialist reports back to the supervisor; the supervisor selects the next planned specialist.</p></div>
+              <div class="concept-item"><b>Supervisor</b><p>The coordinator that reads the task plan and dispatches the next node. Here it follows a list of names rather than asking a model to choose actions.</p></div>
+              <div class="concept-item"><b>State</b><p>The shared clipboard: values written by earlier nodes and read by later nodes. LangGraph combines node updates into the state passed along the graph.</p></div>
+              <div class="concept-item"><b>Why use a graph library?</b><p>It makes the flow explicit, reusable, and streamable. A specialist can remain focused on its work rather than manually calling every next function.</p></div>
+              <div class="concept-item"><b>Why state values are plain data</b><p>The graph stores dictionaries, lists, numbers, and strings so state can be streamed and inspected. Large library objects are not needed as shared state.</p></div>
+              <div class="concept-item"><b>Caution</b><p>A graph only guarantees the structure programmed into it. It does not prove that source data is correct or that a scoring rule is financially appropriate.</p></div>
+            </div>
+          </div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · TypedDict is not a Pydantic model</strong><span>type hints versus runtime checks</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b><code>TypedDict</code></b><p>A Python typing helper that documents which named keys a dictionary is expected to contain and what kinds of values they hold.</p></div>
+              <div class="concept-item"><b>What it does here</b><p><code>AgentState</code> helps developers and editors understand the fields shared between graph steps.</p></div>
+              <div class="concept-item"><b>Important difference</b><p><code>TypedDict</code> does not turn the dictionary into a runtime-validated object. Pydantic request models perform input validation at the API boundary; graph state is ordinary dictionary data.</p></div>
+              <div class="concept-item"><b>Why both?</b><p>Request models protect the public API shape. A typed graph state documents the internal workflow shape without repeatedly converting it to a different object type.</p></div>
+            </div>
+          </div>
           <h3>One subtle but important boundary</h3>
           <p>Deep review can add researched web claims to the evidence list. The current <code>synthesise()</code> function receives metrics and peer data, not the combined evidence list. Therefore those web claims can enrich the evidence/explanation output, but do not alter the numeric score, confidence, or standard verdict.</p>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Why compile and reuse the graph?</strong><span>build the route map once</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>What compile means here</b><p>LangGraph is given the node functions and edges, then produces a runnable graph object.</p></div>
+              <div class="concept-item"><b>Why cache that object?</b><p><code>@lru_cache</code> remembers the built supervisor in process memory. Later tasks reuse the same graph structure instead of rebuilding it each time.</p></div>
+              <div class="concept-item"><b>What is reused</b><p>The graph definition and wiring are reused; each review still receives a new initial state and performs its own analysis.</p></div>
+              <div class="concept-item"><b>Caution</b><p>Reusing the graph does not make user results persistent. Process memory is local to one running copy and is lost when that copy restarts.</p></div>
+            </div>
+          </div>
           <div class="chapter-end">End of chapter 6</div>
         </section>
 
@@ -708,9 +1012,56 @@ points.sort(key=lambda p: p.on)</code></pre>
             <article class="card soft-green"><h3>Growth and consistency</h3><p>Trailing 1-, 3-, and 5-year returns; since-inception CAGR; rolling 3- and 5-year outcomes over multiple start dates.</p></article>
             <article class="card soft-blue"><h3>Risk and downside</h3><p>Annualized volatility, Sharpe ratio, Sortino ratio, and maximum drawdown from a previous peak.</p></article>
           </div>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/analysis/metrics.py · the core formulas</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/analysis/metrics.py">Open source file ↗</a></div>
+            <pre><code>def _cagr(start_nav, end_nav, years):
+    if start_nav &lt;= 0 or years &lt;= 0:
+        return None
+    return (end_nav / start_nav) ** (1.0 / years) - 1.0
+
+def _annualised_vol(rets):
+    if rets.size &lt; 2:
+        return None
+    return np.std(rets, ddof=1) * np.sqrt(252)
+
+def _max_drawdown(s):
+    if s.empty:
+        return None
+    running_max = s.cummax()
+    drawdown = s / running_max - 1.0
+    return float(drawdown.min())</code></pre>
+          </div>
+          <div class="explain"><b>CAGR</b><span>Divides end NAV by start NAV, spreads that growth across the number of years using a root, then subtracts 1 to express the annual rate.</span></div>
+          <div class="explain"><b>Annualized volatility</b><span>Measures how spread out daily returns are, then scales the daily measure to a year using √252, the configured trading-day convention.</span></div>
+          <div class="explain"><b>Maximum drawdown</b><span>At every point, compare the NAV to the highest NAV seen so far. Keep the most negative difference; a result of −0.42 means a worst observed fall of 42% from a previous peak.</span></div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · CAGR, volatility, and drawdown</strong><span>three different questions about history</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>CAGR</b><p>Compound Annual Growth Rate answers: “What steady yearly rate would connect the start value to the end value?” It smooths the path; it does not claim each year actually earned that rate.</p></div>
+              <div class="concept-item"><b>Why annualize?</b><p>A 3-year result and a 5-year result cover different lengths. CAGR expresses multi-year growth as a comparable per-year rate.</p></div>
+              <div class="concept-item"><b>Volatility</b><p>A measure of how widely daily returns move around. Higher volatility means a bumpier historical path, not necessarily a forecast of future movement.</p></div>
+              <div class="concept-item"><b>Drawdown</b><p>The percentage fall from a previous highest NAV to a later lower NAV. Maximum drawdown keeps the worst observed peak-to-trough fall.</p></div>
+              <div class="concept-item"><b>Sharpe and Sortino</b><p>Both compare return with risk. Sharpe uses overall volatility; Sortino focuses on negative daily returns. Neither is a guarantee or a single complete measure of risk.</p></div>
+              <div class="concept-item"><b>Data caution</b><p>These calculations are only as useful as the NAV dates and observations. Short histories may not support longer windows; the code returns missing values or omits rolling windows when observations are insufficient.</p></div>
+            </div>
+          </div>
+          <div class="math">CAGR = (ending NAV ÷ starting NAV)<sup>1 ÷ years</sup> − 1<br>Example: ₹10,000 → ₹15,000 over 3 years gives about 14.47% per year<br>Annualized mean return = average daily return × 252<br>Sharpe = (annualized return − configured risk-free rate) ÷ annualized volatility<br>Sortino uses downside deviation instead of total volatility</div>
+          <p>The current default annual risk-free comparison rate is 6.5% (<code>HPR_RISK_FREE_RATE</code> can change it). In this formula, it is a configurable baseline subtracted from the measured annual return; it is not a promise that an investor can actually earn that rate without risk.</p>
+          <p>For a rolling 3-year result, the backend starts at monthly observations, looks forward three years for each possible start, and records the annualized return. It then reports the minimum, median, maximum, number of windows, and fraction of windows below zero. This answers “how did many possible start dates turn out?” rather than showing only one chosen start date.</p>
           <h3>Returns need a comparison group</h3>
           <p>A return can be high or low depending on the wider market. Peer comparison selects same-category Direct-Growth schemes, excludes the subject from the candidate set, limits each AMC to two schemes, and analyzes at most 18 peers. The reported comparison includes the subject fund among the ranked values.</p>
           <p>A percentile is an approximate position in that comparison set. For example, 0.80 means the value is at least as good as about 80% of the compared values, while respecting whether high or low is better for that metric.</p>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Percentile and peer comparison</strong><span>relative performance, not absolute quality</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>What a percentile says</b><p>It locates a value within a selected comparison group. An 80th percentile suggests the fund’s value is at least as good as about 80% of the compared values for that metric.</p></div>
+              <div class="concept-item"><b>Why compare peers?</b><p>Two funds can have the same return but belong to categories with different conditions. A peer group adds context about similar schemes.</p></div>
+              <div class="concept-item"><b>Direction matters</b><p>Higher return and ratios are generally better; lower volatility is better; drawdown closer to zero is better. The code checks each metric’s intended direction.</p></div>
+              <div class="concept-item"><b>Sample caution</b><p>This is a selected bounded sample, not every fund in the category. Missing peer histories are dropped, and sample composition can affect the rank.</p></div>
+              <div class="concept-item"><b>Percentile is not a probability</b><p>An 80th percentile is not an 80% chance of beating peers in the future. It describes the relative position in this historical comparison.</p></div>
+              <div class="concept-item"><b>Recommendation caution</b><p>The separate alternatives endpoint applies transparent filters, but those results are research leads—not personalized recommendations to buy or switch.</p></div>
+            </div>
+          </div>
           <h3>How the composite score is built</h3>
           <p>Each available component receives a 0–100 sub-score. Each component also has a fixed importance share. If a component is unavailable due to insufficient history, the remaining used weights are effectively normalized by dividing by their sum.</p>
           <div class="table-wrap"><table>
@@ -724,7 +1075,7 @@ points.sort(key=lambda p: p.on)</code></pre>
             </tbody>
           </table></div>
           <div class="code-card">
-            <div class="code-head"><span>backend/app/agent/verdict.py · weights and final decision (excerpt)</span><a href="../backend/app/agent/verdict.py">Open source file ↗</a></div>
+            <div class="code-head"><span>backend/app/agent/verdict.py · weights and final decision (excerpt)</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/agent/verdict.py">Open source file ↗</a></div>
             <pre><code>WEIGHTS = {
     "long_term_return": 0.22,
     "risk_adjusted": 0.26,
@@ -748,6 +1099,23 @@ else:
           <div class="explain"><b>Available weight</b><span>Add only the weights of components that had enough data.</span></div>
           <div class="explain"><b>Health score</b><span>Divide weighted sum by available weight. If none are available, return zero.</span></div>
           <div class="explain"><b>Verdict</b><span>Apply the thresholds in order. Peer standing can distinguish “Continue” from “Shift”; a very low absolute health score can produce “Stop.”</span></div>
+          <h4>A small worked example</h4>
+          <p>Suppose all five components are available and their sub-scores are: long-term return 70, risk-adjusted 60, peer standing 80, consistency 90, and drawdown 50.</p>
+          <div class="math">70 × 0.22 + 60 × 0.26 + 80 × 0.30 + 90 × 0.14 + 50 × 0.08<br>= 15.4 + 15.6 + 24 + 12.6 + 4<br>= health score 71.6</div>
+          <p>If the peer-standing component is available at 80/100 (peer percentile 0.80), the rule “health at least 62 and peer percentile at least 0.45” selects <strong>Continue</strong>. This example explains the arithmetic; it does not imply that these are real results for any specific fund.</p>
+          <p>When some component is missing, the code excludes its weight and divides by the sum of weights that remain. For example, if drawdown is unavailable, it does not automatically count as zero; the available weighted total is divided by 0.92 instead of 1.00.</p>
+          <p>Drawdown sub-score maps a 20% fall to 100 and a 60% fall to 0, clamping values outside that range. Consistency prefers the 5-year rolling window; it subtracts four points for each percentage point of negative windows, so 25% negative windows maps to 0. Confidence is based on both data completeness (the sum of present component weights) and whether component scores generally agree; it is clamped between 0.25 and 0.95. Confidence is a property of available evidence, not a promise that the verdict is correct.</p>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Score, verdict, confidence, evidence</strong><span>related fields with different meanings</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Health score</b><p>A 0–100 combination of weighted component scores. It summarizes the product’s selected historical measures.</p></div>
+              <div class="concept-item"><b>Verdict</b><p>A label selected by ordered threshold rules. The score and peer percentile are inputs to those rules.</p></div>
+              <div class="concept-item"><b>Confidence</b><p>A code-defined indicator combining data completeness and agreement among available components. It is not a statistical confidence interval and not a guarantee.</p></div>
+              <div class="concept-item"><b>Evidence item</b><p>A human-readable statement with a direction (positive, negative, neutral), weight, confidence, and source. It makes the reasoning easier to inspect.</p></div>
+              <div class="concept-item"><b>Why keep them separate?</b><p>A score is a numeric summary, a verdict is a rule-based category, confidence indicates limitations/consistency, and evidence tells a reader what facts contributed.</p></div>
+              <div class="concept-item"><b>Interpretation caution</b><p>Do not read the confidence field as the chance that an investment will succeed. It describes how the product’s input evidence looks under its own formula.</p></div>
+            </div>
+          </div>
           <h3>Evidence explains; rules decide</h3>
           <p><code>build_evidence()</code> turns metric and peer facts into readable items. An item can include a claim, category, direction, importance weight, confidence, and source references. The ledger helps people inspect the reasons. The arithmetic score is produced by the explicit scoring functions.</p>
           <div class="callout"><strong>Not regulated advice:</strong><p>Thresholds and portfolio rules are product rules of thumb. They are not regulated ratings, promises, or personalized investment instructions.</p></div>
@@ -766,9 +1134,22 @@ else:
           </div>
           <div class="math">event: step<br>data: {"message":"Compared against same-category peers"}<br><br>event: result<br>data: { ...final review... }</div>
           <p>An event consists of an event name and a data line. A blank line ends the event. The stream flows from the server to the caller; the caller does not send new instructions through that same stream.</p>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · SSE protocol</strong><span>many messages in one HTTP response</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>What SSE is</b><p>Server-Sent Events is a text-based format for sending named messages from a server to a client over a long-lived HTTP response.</p></div>
+              <div class="concept-item"><b>Why choose it?</b><p>Long reviews can take time. Progress messages keep the caller informed without repeatedly polling “is it done yet?”</p></div>
+              <div class="concept-item"><b>One-way direction</b><p>The server can send multiple events, but the client cannot send a new command back on that same stream. A new instruction needs another request.</p></div>
+              <div class="concept-item"><b>Event framing</b><p>Text fields such as <code>event:</code> and <code>data:</code> are separated by a blank line. Truthfolio places JSON text in the data field.</p></div>
+              <div class="concept-item"><b>Why the blank line matters</b><p>It marks the end of one event. Without a complete frame, a receiver may keep waiting for more bytes before delivering the message to application code.</p></div>
+              <div class="concept-item"><b>Why native browser EventSource is not the whole story</b><p>The browser’s built-in EventSource interface opens GET streams. Truthfolio’s portfolio stream is POST because it accepts a JSON body, so a client needs a fetch-based stream reader or equivalent rather than assuming EventSource can send that body.</p></div>
+              <div class="concept-item"><b>Connection cost</b><p>The HTTP connection stays open while work continues. Long or numerous streams use server, proxy, and network resources; deployment timeouts and buffering behavior matter.</p></div>
+              <div class="concept-item"><b>Disconnect and errors</b><p>A network can close mid-stream. Once response headers have been sent, the server generally cannot replace the HTTP status; a stream event can report errors only if the connection is still usable.</p></div>
+            </div>
+          </div>
           <h3>Frame builder: two lines plus a blank line</h3>
           <div class="code-card">
-            <div class="code-head"><span>backend/app/api/routes.py · SSE frame</span><a href="../backend/app/api/routes.py">Open source file ↗</a></div>
+            <div class="code-head"><span>backend/app/api/routes.py · SSE frame</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/api/routes.py">Open source file ↗</a></div>
             <pre><code>def _sse(event: str, data: dict) -&gt; str:
     return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"</code></pre>
           </div>
@@ -777,7 +1158,7 @@ else:
           <div class="explain"><b>Blank line</b><span>The final <code>\n\n</code> tells the receiver this event is complete.</span></div>
           <h3>Streaming a fund review</h3>
           <div class="code-card">
-            <div class="code-head"><span>backend/app/api/routes.py · event generator (excerpt)</span><a href="../backend/app/api/routes.py">Open source file ↗</a></div>
+            <div class="code-head"><span>backend/app/api/routes.py · event generator (excerpt)</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/api/routes.py">Open source file ↗</a></div>
             <pre><code>async for chunk in graph.astream(initial, stream_mode="values"):
     final_state = chunk
     steps = chunk.get("steps", [])
@@ -804,6 +1185,15 @@ return StreamingResponse(event_gen(), media_type="text/event-stream")</code></pr
             </tbody>
           </table></div>
           <div class="callout"><strong>HTTP status vs stream error:</strong><p>The HTTP response status is chosen when the stream starts. An error discovered after that point is commonly carried as an SSE <code>error</code> event instead of changing the already-started HTTP status.</p></div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · StreamingResponse and event generators</strong><span>produce the body gradually</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Generator</b><p>An async generator can <code>yield</code> one event string, pause, and later yield another as work finishes.</p></div>
+              <div class="concept-item"><b>StreamingResponse</b><p>FastAPI/Starlette response machinery sends yielded body chunks as they become available instead of waiting to assemble one complete JSON body.</p></div>
+              <div class="concept-item"><b>Why keep a final result event?</b><p>Progress events are partial updates. A final <code>result</code> event carries the complete response shape once all required work is assembled.</p></div>
+              <div class="concept-item"><b>Operational caution</b><p>Reverse proxies may buffer output or close idle connections. If live progress is required, test the actual deployment path, not just local development.</p></div>
+            </div>
+          </div>
           <div class="chapter-end">End of chapter 8</div>
         </section>
 
@@ -827,7 +1217,7 @@ return StreamingResponse(event_gen(), media_type="text/event-stream")</code></pr
           <p>The returned personal return is a fraction: <code>0.10</code> means 10%. It is total return from the supplied cost basis, not annualized. The request does not contain purchase dates or cash flows, so the backend cannot derive a time-weighted personal return.</p>
           <h3>Concurrency: many analyses, bounded downloads</h3>
           <div class="code-card">
-            <div class="code-head"><span>backend/app/api/routes.py · parallel holding analyses (excerpt)</span><a href="../backend/app/api/routes.py">Open source file ↗</a></div>
+            <div class="code-head"><span>backend/app/api/routes.py · parallel holding analyses (excerpt)</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/api/routes.py">Open source file ↗</a></div>
             <pre><code>inputs = [HoldingInput(h.scheme_code, h.units, h.avg_nav) for h in req.holdings]
 results = await asyncio.gather(*(analyze_holding(h) for h in inputs))
 valid = [result for result in results if result is not None]
@@ -845,7 +1235,37 @@ if not valid:
             <li>Return a portfolio verdict, best/worst personal return, and action observations.</li>
           </ul>
           <div class="math">HHI = share₁² + share₂² + … + shareₙ²<br>Two equal holdings: 0.5² + 0.5² = 0.50<br>One holding: 1.0² = 1.00</div>
+          <h4>Current concentration penalty and portfolio verdict</h4>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Condition</th><th>Penalty</th><th>Plain label</th></tr></thead>
+            <tbody>
+              <tr><td>One successful holding</td><td>12 points</td><td>No diversification</td></tr>
+              <tr><td>Top category at least 70%, or HHI at least 0.50</td><td>10 points</td><td>Heavily concentrated</td></tr>
+              <tr><td>Top category at least 50%, or HHI at least 0.33</td><td>5 points</td><td>Somewhat concentrated</td></tr>
+              <tr><td>At least 4 holdings and HHI below 0.25</td><td>0 points</td><td>Nicely spread</td></tr>
+              <tr><td>Other combinations</td><td>2 points</td><td>Reasonably spread</td></tr>
+            </tbody>
+          </table></div>
+          <p>Portfolio health starts with the current-value-weighted average of fund health scores and subtracts the penalty. It is clamped to 0–100. The verdict is <strong>Healthy</strong> at health ≥65 and penalty ≤5; otherwise <strong>Minor tweaks</strong> at health ≥50; otherwise <strong>Needs rebalancing</strong>. Portfolio confidence is currently fixed at 0.8 for two or more successful holdings and 0.6 for one.</p>
           <p>The synchronous route returns the final portfolio object once. The streaming route reports each holding completion and then calls the same portfolio aggregation logic for the final result.</p>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Partial failure in a portfolio</strong><span>one holding can fail without losing all results</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Why allow partial success?</b><p>A portfolio may contain several funds. One unavailable scheme should not necessarily prevent the caller receiving useful results for the other holdings.</p></div>
+              <div class="concept-item"><b>Current behavior</b><p>Each holding analysis may return a result or <code>None</code>. The route aggregates the successful items and reports how many failed.</p></div>
+              <div class="concept-item"><b>All holdings fail</b><p>The ordinary portfolio endpoint raises HTTP 422 when none can be analyzed. The stream sends an <code>error</code> event rather than a final result.</p></div>
+              <div class="concept-item"><b>Important visibility limit</b><p>The portfolio result gives a failure count, not a detailed per-holding diagnostic reason for every failure. That makes it less useful for debugging than a richer error report would be.</p></div>
+            </div>
+          </div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · HHI and concentration penalty</strong><span>a simple concentration signal</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>What HHI measures here</b><p>Take each fund’s fraction of current portfolio value, square each fraction, then add the squares. Larger values indicate more concentration in fewer holdings.</p></div>
+              <div class="concept-item"><b>Why square the shares?</b><p>Squaring makes large shares count disproportionately more. One 100% holding gives 1.0; two equal 50% holdings give 0.50.</p></div>
+              <div class="concept-item"><b>What it does not measure</b><p>It does not inspect the underlying stocks inside each mutual fund. Two different funds may own many of the same companies, but this backend does not calculate that overlap.</p></div>
+              <div class="concept-item"><b>Penalty caution</b><p>The concentration deduction and portfolio verdict use fixed product thresholds. They are a transparent product heuristic, not regulated suitability advice.</p></div>
+            </div>
+          </div>
           <div class="chapter-end">End of chapter 9</div>
         </section>
 
@@ -875,7 +1295,7 @@ if not valid:
           </figure>
           <h3>Read a limited number of bytes</h3>
           <div class="code-card">
-            <div class="code-head"><span>backend/app/api/routes.py · upload boundary (excerpt)</span><a href="../backend/app/api/routes.py">Open source file ↗</a></div>
+            <div class="code-head"><span>backend/app/api/routes.py · upload boundary (excerpt)</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/api/routes.py">Open source file ↗</a></div>
             <pre><code>data = await file.read(settings.cas_max_bytes + 1)
 ...
 if len(data) &gt; settings.cas_max_bytes:
@@ -889,6 +1309,17 @@ result = await asyncio.to_thread(cas_import.import_cas, data, password, master)<
             <article class="card soft-rose"><h3>Sensitive content</h3><p>The route does not intentionally write or log the PDF/password or send them to search or AI. It clears its local references after parsing; this is not a guaranteed secure erase of Python memory.</p></article>
           </div>
           <p>Import prepares holdings; it does not itself run the portfolio analysis. The returned holdings are submitted to <code>/portfolio</code> or <code>/portfolio/stream</code> for review.</p>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Multipart file upload</strong><span>file bytes plus ordinary form fields</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Why not JSON?</b><p>JSON is good for text, numbers, lists, and objects. A PDF is arbitrary binary file data, so browsers commonly send it in a multipart form that can include both a file and a password field.</p></div>
+              <div class="concept-item"><b>What <code>UploadFile</code> provides</b><p>FastAPI gives the route an upload object with a way to read file bytes and close the upload. The route reads only the configured maximum plus one byte.</p></div>
+              <div class="concept-item"><b>Why a worker thread?</b><p>The PDF parser is synchronous/blocking. Moving it with <code>asyncio.to_thread()</code> lets the event loop attend to other asynchronous requests while parsing runs.</p></div>
+              <div class="concept-item"><b>Privacy boundary</b><p>In-memory handling avoids intentionally writing the PDF or password to disk, but it is not cryptographic erasure. Temporary memory, crash dumps, platform internals, and logs require their own operational controls.</p></div>
+              <div class="concept-item"><b>Matching strategy</b><p>When a statement row has an official scheme code, use it. If that is missing, the importer can use an ISIN to look up the official scheme.</p></div>
+              <div class="concept-item"><b>Input is still untrusted</b><p>A file extension does not prove that a file is a valid or safe PDF. Size checks and parser error handling limit some risks, but upload services should also use current libraries and deployment-level limits.</p></div>
+            </div>
+          </div>
           <div class="chapter-end">End of chapter 10</div>
         </section>
 
@@ -930,6 +1361,39 @@ result = await asyncio.to_thread(cas_import.import_cas, data, password, master)<
             <article class="card soft-green"><h3>Deterministic path</h3><p>Ordinary NAV metrics, peer ranking, and the numeric verdict are computed in this backend. They do not need an LLM provider.</p></article>
             <article class="card soft-rose"><h3>Optional path</h3><p>When a feature calls an LLM or search service, the context needed for that feature is sent to that outside provider. Chat services do not store a server-side transcript.</p></article>
           </div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · What is an LLM and what is a provider?</strong><span>text generation is not arithmetic truth</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>LLM</b><p>A Large Language Model is software trained to produce text based on input text and learned patterns. It is useful for wording, summarizing, and answering within a supplied context.</p></div>
+              <div class="concept-item"><b>Provider</b><p>A provider is the external service company that runs a model and exposes it over a network API. Truthfolio can select Anthropic or Groq through its provider configuration.</p></div>
+              <div class="concept-item"><b>Why not let it decide the score?</b><p>Text generation can be plausible without being numerically correct. Truthfolio computes the standard metrics and verdict in code, then may ask the model to explain those results.</p></div>
+              <div class="concept-item"><b>Provider call path</b><p>A specialist builds context, the provider client sends a network request with a secret API key, the service returns generated text, and Truthfolio parses/uses that response.</p></div>
+              <div class="concept-item"><b>What leaves this service?</b><p>When an optional AI/search feature is used, the data needed for its prompt or query leaves the backend and is sent to the selected provider. Review the provider’s data policies before enabling it.</p></div>
+              <div class="concept-item"><b>Reliability caution</b><p>A model can misunderstand, omit context, or make unsupported claims. Code validation and source grounding reduce some failure modes, but generated text should not be treated as verified fact by itself.</p></div>
+            </div>
+          </div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Prompt, context, and output validation</strong><span>instructions are not a guarantee</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Prompt</b><p>The instructions and information sent to the model. A system prompt describes the task and boundaries; user/context content supplies the facts to explain.</p></div>
+              <div class="concept-item"><b>Context</b><p>The specific metrics, evidence, holdings, or source snippets provided for one request. More context is not always better: it can cost more, exceed limits, or introduce irrelevant material.</p></div>
+              <div class="concept-item"><b>Output validation</b><p>For structured features, the backend checks returned fields, types, and citations before returning the result. This catches malformed output, not every false statement.</p></div>
+              <div class="concept-item"><b>Why keep fixed caveats in code?</b><p>Important educational warnings should not depend on the model remembering to include them. The narrative node adds the canonical caveats after generation.</p></div>
+              <div class="concept-item"><b>Prompt-injection caution</b><p>Text retrieved from the web can contain instructions aimed at the model. Treat retrieved pages as untrusted data, separate them from system instructions, validate output, and never grant the model unrestricted tools.</p></div>
+              <div class="concept-item"><b>Fallback meaning</b><p>When optional narrative generation is disabled or fails, the backend can use a code-written template. This preserves a result without pretending the model succeeded.</p></div>
+            </div>
+          </div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Citation and source appraisal</strong><span>traceability helps; it is not a fact-check oracle</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Citation</b><p>A reference connecting a claim to a source, usually with a stable number, title, and URL. Deduplication avoids listing the same URL repeatedly.</p></div>
+              <div class="concept-item"><b>Appraisal score</b><p>A rule-based 0–1 score using domain, publication date, and corroboration. It controls which sources can be used for extraction.</p></div>
+              <div class="concept-item"><b>Why appraise?</b><p>Search engines return pages of mixed quality and age. Filtering can reduce reliance on weak or stale material before asking a model to summarize it.</p></div>
+              <div class="concept-item"><b>Important limitation</b><p>A score such as 0.80 is not an 80% probability that a page is true. The rules cannot independently verify every article’s content or detect every coordinated/incorrect source.</p></div>
+              <div class="concept-item"><b>Research boundary</b><p>The standard review does not automatically use Tavily. The explicit research route is the credit-spending path, and the normal numeric verdict currently does not consume the combined web evidence.</p></div>
+              <div class="concept-item"><b>Budget and cache</b><p>Search results are cached and successful uncached searches count toward a per-process daily cap. A cache hit can avoid another external request.</p></div>
+            </div>
+          </div>
           <div class="chapter-end">End of chapter 11</div>
         </section>
 
@@ -940,6 +1404,17 @@ result = await asyncio.to_thread(cas_import.import_cas, data, password, master)<
           </div>
           <h3>Where settings come from</h3>
           <p><code>Settings</code> uses Pydantic Settings to read environment variables and a local <code>.env</code> file. Most settings use the <code>HPR_</code> prefix. Provider selection and keys accept both common unprefixed names and prefixed alternatives.</p>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Configuration, environment variables, and secrets</strong><span>change behavior without editing code</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Configuration value</b><p>A value that changes how the service behaves, such as a timeout, cache path, provider, or allowed browser origin.</p></div>
+              <div class="concept-item"><b>Environment variable</b><p>A name/value supplied to a running program by its shell or deployment platform. For example, <code>HPR_NAV_TTL_HOURS=12</code>.</p></div>
+              <div class="concept-item"><b>Why not hard-code everything?</b><p>Development, staging, and production may need different URLs and limits. Environment settings let the same application code run in each environment.</p></div>
+              <div class="concept-item"><b>API key</b><p>A secret credential that lets the backend use an outside service. A provider key is not a user login, and should not be put in browser code or committed to source control.</p></div>
+              <div class="concept-item"><b>Settings cache</b><p><code>@lru_cache</code> makes <code>get_settings()</code> return the same Settings object after its first call. This avoids rereading settings and recreating the cache directory repeatedly.</p></div>
+              <div class="concept-item"><b>Caution</b><p>Changing an environment variable after settings have been loaded may not affect the current process. Restart it, and rotate exposed credentials rather than merely deleting them from a local file.</p></div>
+            </div>
+          </div>
           <div class="table-wrap"><table>
             <thead><tr><th>Area</th><th>Example setting</th><th>Typical default</th></tr></thead>
             <tbody>
@@ -958,7 +1433,7 @@ result = await asyncio.to_thread(cas_import.import_cas, data, password, master)<
               <tr><td>Request model rejects values</td><td>HTTP 422</td><td>Input did not match accepted fields or limits.</td></tr>
               <tr><td>Scheme code not in AMFI master</td><td>HTTP 404</td><td>No official scheme matched that code.</td></tr>
               <tr><td>Chat provider not configured</td><td>HTTP 503</td><td>Optional feature is unavailable.</td></tr>
-              <tr><td>Daily cap reached</td><td>HTTP 429</td><td>Wait for the usage window to reset.</td></tr>
+              <tr><td>Chat daily cap reached</td><td>HTTP 429</td><td>Wait for that chat feature’s usage window to reset.</td></tr>
               <tr><td>Known chat provider failure</td><td>HTTP 502</td><td>Outside provider could not produce a usable answer.</td></tr>
               <tr><td>CAS too large</td><td>HTTP 413</td><td>Uploaded file exceeds configured limit.</td></tr>
               <tr><td>Optional narrative fails</td><td>Template narrative</td><td>Core score/verdict can still be returned.</td></tr>
@@ -970,19 +1445,29 @@ result = await asyncio.to_thread(cas_import.import_cas, data, password, master)<
             <article class="card"><h3>Local disk</h3><p>JSON cache files live in that instance’s configured cache folder.</p></article>
             <article class="card"><h3>Not shared automatically</h3><p>Multiple app instances have separate in-memory counters and may have separate filesystems.</p></article>
           </div>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Authentication, authorization, and CORS are different</strong><span>do not confuse browser permission with identity</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Authentication</b><p>Answers “who is making this request?”—for example, by checking a session or token.</p></div>
+              <div class="concept-item"><b>Authorization</b><p>Answers “is this identified caller allowed to perform this action or see this data?”</p></div>
+              <div class="concept-item"><b>CORS</b><p>Answers a browser-specific question: “may JavaScript from this website read this response?” It does not identify or authorize the caller.</p></div>
+              <div class="concept-item"><b>Truthfolio’s current boundary</b><p>The backend currently has no account/login system or per-user saved portfolio. CORS is not a substitute for those controls if private, user-specific features are later introduced.</p></div>
+            </div>
+          </div>
           <h3>Limits to keep in mind</h3>
           <ul>
             <li>Portfolio requests accept at most 40 holdings.</li>
             <li>At most 16 NAV downloads run at the same time in one backend process.</li>
             <li>Peer ranking uses at most 18 peers; recommendation scanning considers up to 120 candidates.</li>
             <li>Chat messages and context have field, message-count, and total-size limits.</li>
-            <li>Tavily and chat counters live in memory, are not per-user, and are not shared across service instances.</li>
+            <li>Tavily and chat counters live in memory, are not per-user, and are not shared across service instances. Fund chat and portfolio chat each keep a separate counter, even though they use the same configured cap value.</li>
             <li>There is no database, user login, persistent portfolio storage, or background job queue in this backend.</li>
           </ul>
+          <p>The Tavily counter is checked before the network request and increased after a successful response. It is an in-process safety valve, not a billing-grade global quota: a restart resets it, multiple workers each have their own counter, and simultaneous requests near the limit can race. Chat caps use separate locked in-process counters; failed provider calls still consume a chat slot.</p>
           <div class="callout danger"><strong>Deployment implication:</strong><p>A short-lived serverless setup can restart between requests, and multiple replicas do not share these process-local values. If a deployment needs a single global quota or shared cache, it needs additional shared storage or coordination.</p></div>
           <h3>Run and test locally</h3>
           <div class="code-card">
-            <div class="code-head"><span>Commands from the backend package configuration</span><a href="../backend/pyproject.toml">Open pyproject.toml ↗</a></div>
+            <div class="code-head"><span>Commands from the backend package configuration</span><a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/pyproject.toml">Open pyproject.toml ↗</a></div>
             <pre><code>cd backend
 uv venv .venv
 uv pip install -e ".[dev]"
@@ -992,6 +1477,15 @@ uv pip install -e ".[dev]"
 .venv/bin/python -m pytest -q</code></pre>
           </div>
           <p>The interactive API reference is available at <code>http://localhost:8077/docs</code> while the server is running. It is generated from the route declarations and request/response models.</p>
+          <div class="concept">
+            <div class="concept-head"><strong>Concept · Tests and dependency declarations</strong><span>how the project checks and installs itself</span></div>
+            <div class="concept-grid">
+              <div class="concept-item"><b>Dependency</b><p>A library the application imports to do a job, such as FastAPI for HTTP routes, httpx for network requests, or Pandas for dated numerical data.</p></div>
+              <div class="concept-item"><b>Why declare dependencies?</b><p><code>pyproject.toml</code> records package names, supported Python version, development tools, and test configuration so environments can be recreated consistently.</p></div>
+              <div class="concept-item"><b>Automated test</b><p>A repeatable check that exercises code with known inputs and verifies expected outputs or behavior. Tests help detect regressions when implementation changes.</p></div>
+              <div class="concept-item"><b>Why a test passing is not complete proof</b><p>A test only covers the cases it actually executes. External services, production networking, deployment proxy behavior, and real provider responses may need separate checks.</p></div>
+            </div>
+          </div>
           <div class="chapter-end">End of chapter 12</div>
         </section>
 
@@ -1022,13 +1516,27 @@ uv pip install -e ".[dev]"
             </tbody>
           </table></div>
           <h3>Mini glossary</h3>
-          <div class="grid two">
-            <article class="card"><h3>ASGI</h3><p>The standard interface connecting Uvicorn to an asynchronous Python web application.</p></article>
-            <article class="card"><h3>Middleware</h3><p>Helper code that runs around a request or response, such as CORS handling.</p></article>
+          <div class="grid three">
+            <article class="card"><h3>API</h3><p>An agreed menu of addresses and actions one program offers another.</p></article>
+            <article class="card"><h3>ASGI</h3><p>The standard interface that connects Uvicorn to an asynchronous Python web application.</p></article>
+            <article class="card"><h3>Await</h3><p>Pause this async task until an operation is ready, allowing other tasks to make progress meanwhile.</p></article>
+            <article class="card"><h3>Cache</h3><p>A reusable saved copy that avoids fetching or recalculating the same thing immediately.</p></article>
+            <article class="card"><h3>CORS</h3><p>Browser rules about which website origin may read a cross-origin API response—not authentication.</p></article>
+            <article class="card"><h3>Dataclass</h3><p>A Python helper for defining a simple record with named fields.</p></article>
+            <article class="card"><h3>Deterministic</h3><p>Same inputs and settings follow the same code rules to produce the same calculation.</p></article>
+            <article class="card"><h3>Endpoint / route</h3><p>A method and address connected to a handler, such as <code>GET /api/search</code>.</p></article>
+            <article class="card"><h3>Event loop</h3><p>The scheduler that lets Python async tasks take turns, especially while other tasks wait for network I/O.</p></article>
+            <article class="card"><h3>HTTP</h3><p>The request-and-response protocol used to communicate with a web service.</p></article>
+            <article class="card"><h3>JSON</h3><p>Text representation of named values, lists, and nested data.</p></article>
+            <article class="card"><h3>LLM</h3><p>Large Language Model: software that generates or transforms text based on supplied context.</p></article>
+            <article class="card"><h3>Middleware</h3><p>Helper code that wraps request/response handling, such as CORS header handling.</p></article>
+            <article class="card"><h3>Node</h3><p>One specialist function in the LangGraph workflow.</p></article>
+            <article class="card"><h3>Percentile</h3><p>A relative position in a selected comparison group, not a chance of future success.</p></article>
+            <article class="card"><h3>Process</h3><p>One running copy of the backend program, with its own memory.</p></article>
+            <article class="card"><h3>Semaphore</h3><p>A counter acting like a traffic light: only a limited number of tasks pass at once.</p></article>
+            <article class="card"><h3>SSE</h3><p>Server-Sent Events: named text messages sent from server to caller over an open HTTP response.</p></article>
             <article class="card"><h3>TTL</h3><p>Time to live: how long a saved copy can be treated as fresh.</p></article>
-            <article class="card"><h3>Semaphore</h3><p>A counter acting like a traffic light: only a fixed number of tasks may pass at once.</p></article>
-            <article class="card"><h3>Dataclass</h3><p>A Python helper that creates a simple record-like class for related values.</p></article>
-            <article class="card"><h3>Deterministic</h3><p>Given the same inputs and settings, the code follows the same rules and produces the same calculation.</p></article>
+            <article class="card"><h3>Uvicorn</h3><p>The web-server program that listens for network requests and connects to the ASGI app.</p></article>
           </div>
           <div class="book-note">
             <div class="icon">🧭</div>
@@ -1042,7 +1550,7 @@ uv pip install -e ".[dev]"
         <footer class="footer">
           <p><strong>Inside Truthfolio — A Visual Backend Book</strong></p>
           <p>Companion to the backend reference. Written to explain this repository’s current implementation; it is not a general FastAPI reference or investment advice. Verify source code when implementation changes.</p>
-          <p><a href="./BACKEND.md">Read the concise backend handbook</a> · <a href="../backend/app/main.py">Open the backend entry point</a></p>
+          <p><a href="./BACKEND.md">Read the concise backend handbook</a> · <a href="https://github.com/chamanthmvs/Truthfolio/blob/main/backend/app/main.py">Open the backend entry point</a></p>
         </footer>
       </div>
     </main>
