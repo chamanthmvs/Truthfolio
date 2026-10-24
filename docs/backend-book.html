@@ -1,0 +1,1051 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="A visual, code-led guide to the Truthfolio Python backend.">
+  <title>Inside Truthfolio — A Visual Backend Book</title>
+  <style>
+    :root {
+      --ink: #17252a;
+      --muted: #5c6d70;
+      --paper: #f5f4ef;
+      --card: #fffefa;
+      --line: #d9dfd8;
+      --green: #0d765e;
+      --green-dark: #075744;
+      --mint: #dff3e9;
+      --blue: #315d91;
+      --blue-light: #e8f0fb;
+      --gold: #b7791f;
+      --gold-light: #fff2d6;
+      --rose: #a74646;
+      --rose-light: #fae9e7;
+      --code: #14222b;
+      --code-ink: #e3eef3;
+      --shadow: 0 16px 48px rgba(25, 44, 40, .08);
+      --radius: 18px;
+      --sidebar: 286px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 28px; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 16px/1.72 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--green-dark); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:hover { color: var(--blue); }
+    .layout { min-height: 100vh; }
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 5;
+      width: var(--sidebar);
+      padding: 26px 20px 30px;
+      overflow-y: auto;
+      background: #fdfcf7;
+      border-right: 1px solid var(--line);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .brand-mark {
+      display: grid; width: 42px; height: 42px; place-items: center;
+      border-radius: 13px; background: var(--green); color: white;
+      font: 800 20px/1 Georgia, serif;
+    }
+    .brand strong { display: block; font-size: 14px; line-height: 1.25; }
+    .brand span { display: block; color: var(--muted); font-size: 12px; }
+    .side-label {
+      margin: 23px 0 7px; color: #87938d; font-size: 10px;
+      font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+    }
+    .toc { display: grid; gap: 3px; }
+    .toc a {
+      display: block; padding: 7px 10px; border-radius: 9px; color: #41524f;
+      font-size: 12px; line-height: 1.4; text-decoration: none;
+    }
+    .toc a:hover, .toc a.active { background: var(--mint); color: var(--green-dark); }
+    .toc .sub { padding-left: 22px; color: #72807c; font-size: 11px; }
+    .side-note {
+      margin-top: 24px; padding: 13px; border: 1px solid var(--line);
+      border-radius: 12px; color: var(--muted); font-size: 11px; line-height: 1.55;
+    }
+    main { margin-left: var(--sidebar); }
+    .reading { width: min(100% - 64px, 1040px); margin: 0 auto; padding: 38px 0 90px; }
+    .topline {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 24px; color: var(--muted); font-size: 12px;
+    }
+    .pill {
+      display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px;
+      border: 1px solid #bddbcc; border-radius: 999px; background: #f4fff9;
+      color: var(--green-dark); font-size: 11px; font-weight: 750;
+    }
+    .hero {
+      position: relative; overflow: hidden; padding: clamp(30px, 6vw, 70px);
+      border-radius: 28px; background: #102e2b; color: #f5fff9; box-shadow: var(--shadow);
+    }
+    .hero:after {
+      position: absolute; width: 420px; height: 420px; right: -125px; top: -180px;
+      border: 1px solid rgba(197, 239, 216, .25); border-radius: 50%;
+      box-shadow: 0 0 0 42px rgba(197,239,216,.035), 0 0 0 90px rgba(197,239,216,.025);
+      content: "";
+    }
+    .hero .eyebrow { color: #a7ddc5; font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { max-width: 760px; margin: 14px 0 18px; font: 600 clamp(42px, 7vw, 76px)/1.02 Georgia, "Times New Roman", serif; letter-spacing: -.045em; }
+    .hero p { max-width: 680px; color: #d0e3d9; font-size: clamp(16px, 2vw, 20px); }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; }
+    .hero-meta span { padding: 6px 10px; border: 1px solid #42665c; border-radius: 999px; color: #d6e9df; font-size: 11px; }
+    .cover-illustration { position: relative; z-index: 1; margin-top: 38px; }
+    .cover-illustration svg { display: block; width: 100%; height: auto; }
+    .book-note {
+      display: grid; grid-template-columns: 42px 1fr; gap: 13px; align-items: start;
+      margin: 24px 0; padding: 18px 20px; border: 1px solid #d3e6da;
+      border-radius: 14px; background: #f4fbf5;
+    }
+    .book-note .icon { font-size: 23px; line-height: 1.3; }
+    .book-note p { margin: 0; }
+    .book-note strong { color: var(--green-dark); }
+    section.chapter {
+      margin-top: 54px; padding-top: 20px; border-top: 1px solid var(--line);
+    }
+    .chapter-head { display: grid; grid-template-columns: 56px 1fr; gap: 16px; align-items: start; margin: 8px 0 24px; }
+    .chapter-num {
+      display: grid; width: 50px; height: 50px; place-items: center;
+      border-radius: 16px; background: var(--green); color: white;
+      font: 700 21px/1 Georgia, serif;
+    }
+    h2 { margin: 0; font: 600 clamp(29px, 4vw, 42px)/1.12 Georgia, serif; letter-spacing: -.025em; }
+    .chapter-head p { max-width: 740px; margin: 8px 0 0; color: var(--muted); }
+    h3 { margin: 34px 0 10px; font-size: 20px; line-height: 1.3; }
+    h4 { margin: 26px 0 8px; color: var(--green-dark); font-size: 14px; letter-spacing: .03em; text-transform: uppercase; }
+    p { margin: 12px 0; }
+    .lead { color: #354743; font-size: 18px; }
+    .grid { display: grid; gap: 16px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card {
+      padding: 18px 19px; border: 1px solid var(--line); border-radius: var(--radius);
+      background: var(--card); box-shadow: 0 5px 18px rgba(25,44,40,.035);
+    }
+    .card h3, .card h4 { margin-top: 0; }
+    .card p:last-child { margin-bottom: 0; }
+    .card .tag { display: inline-block; margin-bottom: 10px; color: var(--green); font-size: 10px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+    .soft-green { background: #f0f8f2; border-color: #d2e6d9; }
+    .soft-blue { background: #f3f7fc; border-color: #d7e2ef; }
+    .soft-gold { background: #fff9ec; border-color: #ecdfbf; }
+    .soft-rose { background: #fff5f2; border-color: #eed7d0; }
+    .diagram {
+      margin: 23px 0; padding: 16px; overflow-x: auto; border: 1px solid var(--line);
+      border-radius: 18px; background: #fffefa;
+    }
+    .diagram svg { display: block; width: 100%; min-width: 620px; height: auto; }
+    .diagram figcaption { margin: 12px 5px 2px; color: var(--muted); font-size: 12px; }
+    .flow-row { display: grid; grid-template-columns: repeat(5, minmax(120px,1fr)); gap: 22px; align-items: stretch; }
+    .flow-step {
+      position: relative; min-height: 105px; padding: 14px; border: 1px solid #cbded2;
+      border-radius: 14px; background: #f7fcf8; text-align: center;
+    }
+    .flow-step:not(:last-child):after {
+      position: absolute; top: 44%; right: -19px; color: var(--green);
+      font-size: 20px; font-weight: 800; content: "→";
+    }
+    .flow-step b { display: block; margin-bottom: 5px; color: var(--green-dark); font-size: 13px; }
+    .flow-step span { color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .code-card {
+      margin: 20px 0; overflow: hidden; border-radius: 16px;
+      background: var(--code); box-shadow: 0 12px 30px rgba(10,25,34,.13);
+    }
+    .code-head {
+      display: flex; justify-content: space-between; gap: 12px; align-items: center;
+      padding: 10px 15px; border-bottom: 1px solid #33444f; color: #b4c9d4;
+      font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .code-head a { color: #9ad8c0; text-decoration: none; }
+    pre {
+      margin: 0; padding: 18px; overflow: auto; color: var(--code-ink);
+      font: 12px/1.68 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      tab-size: 4;
+    }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    :not(pre) > code { padding: 2px 5px; border-radius: 5px; background: #e9eee8; color: #23473e; font-size: .9em; }
+    .explain {
+      display: grid; grid-template-columns: 112px 1fr; gap: 14px; margin: 12px 0;
+      padding: 13px 15px; border-left: 3px solid var(--green); border-radius: 0 10px 10px 0;
+      background: #f0f7f2;
+    }
+    .explain b { color: var(--green-dark); font-size: 12px; }
+    .explain span { color: #42534e; font-size: 13px; }
+    .callout {
+      margin: 20px 0; padding: 16px 19px; border-left: 4px solid var(--gold);
+      border-radius: 0 13px 13px 0; background: var(--gold-light);
+    }
+    .callout strong { color: #76500f; }
+    .callout p { margin: 4px 0; }
+    .callout.danger { border-color: var(--rose); background: var(--rose-light); }
+    .callout.danger strong { color: #8a3333; }
+    .table-wrap { margin: 18px 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 11px 13px; border-bottom: 1px solid #e7e9e2; text-align: left; vertical-align: top; }
+    th { background: #edf4ee; color: #31564b; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    td code { white-space: nowrap; }
+    .math {
+      margin: 15px 0; padding: 16px; border: 1px dashed #b8cfc0;
+      border-radius: 12px; background: #f7fbf7; color: #174d3c;
+      font: 14px/1.8 ui-monospace, SFMono-Regular, Menlo, monospace;
+      text-align: center; overflow-wrap: anywhere;
+    }
+    .timeline { position: relative; display: grid; gap: 0; margin: 20px 0 20px 10px; }
+    .timeline:before { position: absolute; inset: 12px auto 14px 16px; width: 2px; background: #bad5c4; content: ""; }
+    .timeline-item { position: relative; display: grid; grid-template-columns: 34px 1fr; gap: 12px; padding-bottom: 15px; }
+    .timeline-dot {
+      z-index: 1; display: grid; width: 34px; height: 34px; place-items: center;
+      border: 2px solid white; border-radius: 50%; background: var(--green); color: white;
+      font-size: 12px; font-weight: 800; box-shadow: 0 0 0 1px #9fc8ad;
+    }
+    .timeline-item p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+    .timeline-item strong { color: var(--ink); }
+    .quote-code { color: #b9edcf; }
+    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 15px 0; }
+    .badge { padding: 5px 9px; border-radius: 8px; background: var(--blue-light); color: #355781; font-size: 11px; font-weight: 700; }
+    .chapter-end { display: flex; gap: 10px; align-items: center; margin-top: 26px; color: #73817c; font-size: 11px; }
+    .chapter-end:before, .chapter-end:after { height: 1px; flex: 1; background: var(--line); content: ""; }
+    .footer {
+      margin-top: 64px; padding: 24px 0; border-top: 1px solid var(--line);
+      color: var(--muted); font-size: 12px;
+    }
+    .footer strong { color: var(--ink); }
+    @media (max-width: 980px) {
+      .sidebar { position: sticky; top: 0; width: 100%; height: auto; padding: 10px 14px; border-right: 0; border-bottom: 1px solid var(--line); }
+      .brand { margin: 0; }
+      .sidebar nav, .side-label, .side-note { display: none; }
+      main { margin-left: 0; }
+      .reading { width: min(100% - 32px, 820px); padding-top: 18px; }
+      .grid.three { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+    @media (max-width: 640px) {
+      body { font-size: 15px; }
+      .reading { width: calc(100% - 24px); }
+      .topline { align-items: flex-start; flex-direction: column; gap: 8px; }
+      .hero { padding: 27px 22px; border-radius: 20px; }
+      .hero:after { opacity: .5; }
+      .chapter-head { grid-template-columns: 42px 1fr; gap: 11px; }
+      .chapter-num { width: 40px; height: 40px; border-radius: 12px; }
+      .grid.two, .grid.three { grid-template-columns: 1fr; }
+      .flow-row { grid-template-columns: 1fr; gap: 10px; }
+      .flow-step { min-height: auto; text-align: left; }
+      .flow-step:not(:last-child):after { top: auto; right: 14px; bottom: -17px; transform: rotate(90deg); }
+      .explain { grid-template-columns: 1fr; gap: 3px; }
+      pre { font-size: 11px; }
+      th, td { padding: 9px; }
+    }
+    @media print {
+      @page { margin: 16mm 15mm; }
+      body { background: white; font-size: 10pt; }
+      .sidebar { display: none; }
+      main { margin: 0; }
+      .reading { width: 100%; padding: 0; }
+      .topline { margin-bottom: 12px; }
+      .hero { padding: 34px; box-shadow: none; print-color-adjust: exact; }
+      .hero:after { display: none; }
+      .chapter { break-before: page; margin-top: 0 !important; }
+      .chapter:first-of-type { break-before: auto; }
+      .card, .diagram, .code-card, .callout, .table-wrap { break-inside: avoid; box-shadow: none; }
+      .code-card, .code-head, .hero, .chapter-num, th { print-color-adjust: exact; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 8pt; }
+      a { color: inherit; text-decoration: none; }
+      .footer { break-before: page; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Book contents">
+      <div class="brand">
+        <div class="brand-mark">T</div>
+        <div><strong>INSIDE TRUTHFOLIO</strong><span>A visual backend book</span></div>
+      </div>
+      <div class="side-label">Read the book</div>
+      <nav class="toc">
+        <a href="#start">Start here</a>
+        <a href="#chapter-1">1 · The backend map</a>
+        <a href="#chapter-2">2 · App startup and FastAPI</a>
+        <a href="#chapter-3">3 · Requests, routes, validation</a>
+        <a href="#chapter-4">4 · Fund directory and NAV data</a>
+        <a href="#chapter-5">5 · Cache and outside services</a>
+        <a href="#chapter-6">6 · Review workflow and LangGraph</a>
+        <a href="#chapter-7">7 · Metrics, evidence, verdict</a>
+        <a href="#chapter-8">8 · SSE, explained in code</a>
+        <a href="#chapter-9">9 · Portfolio analysis</a>
+        <a href="#chapter-10">10 · CAS statement import</a>
+        <a href="#chapter-11">11 · Optional AI and research</a>
+        <a href="#chapter-12">12 · Operations and boundaries</a>
+        <a href="#appendix">Appendix · terms and map</a>
+      </nav>
+      <div class="side-note">
+        This is a companion book, not a replacement. The concise reference remains in
+        <a href="./BACKEND.md">BACKEND.md</a>. Code excerpts link to their source files.
+      </div>
+    </aside>
+
+    <main>
+      <div class="reading">
+        <div class="topline">
+          <span class="pill">BACKEND ENGINEERING · SOURCE-ALIGNED EDITION</span>
+          <span>Self-contained HTML · print-friendly · no external libraries</span>
+        </div>
+
+        <header class="hero" id="start">
+          <div class="eyebrow">A guided tour through the Python service</div>
+          <h1>Inside<br>Truthfolio</h1>
+          <p>A visual, code-led book about how the backend starts, receives a request, finds fund data,
+            calculates a review, and sends the answer back.</p>
+          <div class="hero-meta">
+            <span>FastAPI</span><span>Python 3.11+</span><span>LangGraph</span>
+            <span>Cache</span><span>SSE</span><span>AMFI + mfapi.in</span>
+          </div>
+          <div class="cover-illustration" aria-label="Diagram showing a request entering the backend and becoming a response">
+            <svg viewBox="0 0 880 180" role="img">
+              <defs>
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L9,3 z" fill="#93d4b1"></path>
+                </marker>
+              </defs>
+              <path d="M105 92 H770" stroke="#93d4b1" stroke-width="3" stroke-dasharray="6 7" marker-end="url(#arrow)"></path>
+              <g font-family="system-ui, sans-serif" text-anchor="middle">
+                <g transform="translate(75 92)"><circle r="41" fill="#1d5145" stroke="#80c4a2" stroke-width="2"></circle><text y="5" fill="#fff" font-size="12">REQUEST</text></g>
+                <g transform="translate(260 92)"><rect x="-62" y="-38" width="124" height="76" rx="15" fill="#dff3e9"></rect><text y="-2" fill="#174b3c" font-size="13" font-weight="700">ROUTE</text><text y="17" fill="#48685a" font-size="10">choose the job</text></g>
+                <g transform="translate(440 92)"><rect x="-66" y="-38" width="132" height="76" rx="15" fill="#e8f0fb"></rect><text y="-2" fill="#284c78" font-size="13" font-weight="700">ANALYSIS</text><text y="17" fill="#526b89" font-size="10">calculate from data</text></g>
+                <g transform="translate(620 92)"><rect x="-62" y="-38" width="124" height="76" rx="15" fill="#fff2d6"></rect><text y="-2" fill="#77500e" font-size="13" font-weight="700">RESPONSE</text><text y="17" fill="#887044" font-size="10">JSON or progress</text></g>
+                <g transform="translate(805 92)"><circle r="41" fill="#1d5145" stroke="#80c4a2" stroke-width="2"></circle><text y="5" fill="#fff" font-size="12">CALLER</text></g>
+              </g>
+            </svg>
+          </div>
+        </header>
+
+        <div class="book-note">
+          <div class="icon">📖</div>
+          <p><strong>How to use this book.</strong> Read in order for the full journey, or jump to a chapter
+            from the contents. Each code panel is a real excerpt from this repository; surrounding
+            notes explain what it does, why it exists, and what calls it. Some excerpts are shortened
+            only to keep the important lines together. Use the source link to see the complete file.</p>
+        </div>
+
+        <section class="chapter" id="chapter-1">
+          <div class="chapter-head">
+            <div class="chapter-num">01</div>
+            <div><h2>The backend map</h2><p>Before opening individual files, learn the path a typical fund-review request follows.</p></div>
+          </div>
+          <p class="lead">Think of the backend as a small workshop. The API is the counter where a request arrives.
+            Data modules fetch and prepare the raw material. Analysis modules do the arithmetic. The agent
+            layer coordinates the work. The route packages the finished result for the caller.</p>
+
+          <figure class="diagram">
+            <svg viewBox="0 0 920 510" role="img" aria-labelledby="arch-title arch-desc">
+              <title id="arch-title">Truthfolio backend architecture</title>
+              <desc id="arch-desc">A caller reaches Uvicorn and FastAPI, then a route validates input and calls orchestration, analysis and data modules. Optional AI and search services are shown separately.</desc>
+              <defs>
+                <marker id="a2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0 L0 6 L8 3z" fill="#668777"></path></marker>
+                <marker id="a3" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0 L0 6 L8 3z" fill="#537aa4"></path></marker>
+              </defs>
+              <g font-family="system-ui, sans-serif">
+                <rect x="22" y="182" width="125" height="82" rx="18" fill="#102e2b"></rect>
+                <text x="84" y="216" text-anchor="middle" fill="white" font-size="15" font-weight="700">Caller</text>
+                <text x="84" y="238" text-anchor="middle" fill="#c9e2d5" font-size="11">HTTP request</text>
+                <rect x="190" y="182" width="142" height="82" rx="18" fill="#dff3e9" stroke="#a7cdb5"></rect>
+                <text x="261" y="216" text-anchor="middle" fill="#174b3c" font-size="15" font-weight="700">FastAPI route</text>
+                <text x="261" y="238" text-anchor="middle" fill="#48685a" font-size="11">validate · dispatch</text>
+                <rect x="379" y="182" width="145" height="82" rx="18" fill="#e8f0fb" stroke="#c5d5e9"></rect>
+                <text x="451" y="216" text-anchor="middle" fill="#284c78" font-size="15" font-weight="700">Agent / service</text>
+                <text x="451" y="238" text-anchor="middle" fill="#526b89" font-size="11">coordinate the steps</text>
+                <rect x="572" y="182" width="143" height="82" rx="18" fill="#fff2d6" stroke="#eadbb5"></rect>
+                <text x="643" y="216" text-anchor="middle" fill="#77500e" font-size="15" font-weight="700">Analysis</text>
+                <text x="643" y="238" text-anchor="middle" fill="#887044" font-size="11">numbers · rules</text>
+                <rect x="763" y="182" width="134" height="82" rx="18" fill="#102e2b"></rect>
+                <text x="830" y="216" text-anchor="middle" fill="white" font-size="15" font-weight="700">Response</text>
+                <text x="830" y="238" text-anchor="middle" fill="#c9e2d5" font-size="11">JSON / SSE</text>
+                <path d="M147 223h39 M332 223h41 M524 223h42 M715 223h42" stroke="#668777" stroke-width="3" marker-end="url(#a2)"></path>
+
+                <rect x="370" y="345" width="165" height="74" rx="15" fill="#f0f8f2" stroke="#a7cdb5"></rect>
+                <text x="452" y="375" text-anchor="middle" fill="#174b3c" font-size="14" font-weight="700">Data modules</text>
+                <text x="452" y="396" text-anchor="middle" fill="#48685a" font-size="11">AMFI · NAV · cache</text>
+                <path d="M451 264v76" stroke="#668777" stroke-width="2.5" marker-end="url(#a2)"></path>
+                <path d="M535 382h65" stroke="#668777" stroke-width="2.5" marker-end="url(#a2)"></path>
+                <text x="567" y="370" text-anchor="middle" fill="#60766a" font-size="10">clean data</text>
+                <rect x="609" y="345" width="133" height="74" rx="15" fill="#f7fbf7" stroke="#a7cdb5"></rect>
+                <text x="675" y="375" text-anchor="middle" fill="#174b3c" font-size="13" font-weight="700">Saved cache</text>
+                <text x="675" y="396" text-anchor="middle" fill="#48685a" font-size="11">reuse if fresh</text>
+
+                <rect x="240" y="53" width="188" height="70" rx="15" fill="#f3f7fc" stroke="#c5d5e9"></rect>
+                <text x="334" y="82" text-anchor="middle" fill="#284c78" font-size="13" font-weight="700">Optional: Tavily</text>
+                <text x="334" y="103" text-anchor="middle" fill="#526b89" font-size="11">explicit web research</text>
+                <path d="M334 123v49" stroke="#537aa4" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#a3)"></path>
+                <rect x="483" y="53" width="188" height="70" rx="15" fill="#f3f7fc" stroke="#c5d5e9"></rect>
+                <text x="577" y="82" text-anchor="middle" fill="#284c78" font-size="13" font-weight="700">Optional: LLM</text>
+                <text x="577" y="103" text-anchor="middle" fill="#526b89" font-size="11">explanation / chat</text>
+                <path d="M577 123v49" stroke="#537aa4" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#a3)"></path>
+                <text x="451" y="468" text-anchor="middle" fill="#6b7b75" font-size="12">Dashed arrows are optional paths. Most quantitative fund-review calculations work without AI.</text>
+              </g>
+            </svg>
+            <figcaption>Figure 1. One way to picture the backend: the route handles the request, while specialist layers do focused jobs.</figcaption>
+          </figure>
+
+          <div class="grid three">
+            <article class="card soft-green"><span class="tag">api/</span><h3>The front counter</h3><p>Matches URLs, checks or receives request data, calls the right function, and returns JSON or a stream.</p></article>
+            <article class="card soft-blue"><span class="tag">agent/</span><h3>The coordinator</h3><p>Runs a defined sequence of specialist functions. The sequence is written in Python rather than invented by an AI.</p></article>
+            <article class="card soft-gold"><span class="tag">analysis/ + data/</span><h3>The workshop</h3><p>Data code finds and cleans information; analysis code turns that information into metrics and summaries.</p></article>
+          </div>
+          <div class="callout"><strong>First important boundary:</strong><p>“Agent” describes the coordination layer. It does not mean an LLM makes the standard health score or verdict. Those are calculated by ordinary Python rules.</p></div>
+          <div class="chapter-end">End of chapter 1</div>
+        </section>
+
+        <section class="chapter" id="chapter-2">
+          <div class="chapter-head">
+            <div class="chapter-num">02</div>
+            <div><h2>App startup and FastAPI</h2><p>The backend begins as a Python object, then a web server makes it reachable over HTTP.</p></div>
+          </div>
+          <h3>Two programs working together</h3>
+          <div class="grid two">
+            <article class="card"><span class="tag">Uvicorn</span><h3>The listener</h3><p>Uvicorn listens for network requests and passes them to the Python web application.</p></article>
+            <article class="card"><span class="tag">FastAPI</span><h3>The request handler</h3><p>FastAPI matches a request to a route, validates declared inputs, runs the handler, and builds the HTTP response.</p></article>
+          </div>
+          <p><strong>ASGI</strong> is the agreed interface between them. Imagine a plug and socket: Uvicorn and FastAPI can connect because both follow the same standard.</p>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/main.py · application creation</span><a href="../backend/app/main.py">Open source file ↗</a></div>
+            <pre><code>def create_app() -&gt; FastAPI:
+    settings = get_settings()
+    app = FastAPI(
+        title=settings.app_name,
+        version="0.1.0",
+        lifespan=lifespan,
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.include_router(router, prefix="/api")
+    return app
+
+app = create_app()</code></pre>
+          </div>
+          <div class="explain"><b>1 · Settings</b><span>Read environment values and prepare the cache directory before routes begin handling traffic.</span></div>
+          <div class="explain"><b>2 · App object</b><span><code>FastAPI(...)</code> creates the application object that Uvicorn will serve.</span></div>
+          <div class="explain"><b>3 · Middleware</b><span>CORS rules add browser-readable permission headers to responses. The browser checks those headers; they are not login protection.</span></div>
+          <div class="explain"><b>4 · Router</b><span>Adding the router with <code>prefix="/api"</code> gives the handlers their public paths, such as <code>/api/search</code>.</span></div>
+          <h3>What CORS actually does</h3>
+          <p>A browser calls an address from a web page. If the page and API have different origins (protocol, host, or port), the browser asks whether the page is allowed to read the API response. Truthfolio’s CORS middleware configures the response that answers that browser rule.</p>
+          <div class="grid two">
+            <article class="card soft-green"><h3>It helps with</h3><p>Allowing a known browser-based website—such as the local site at port 3000—to read responses from the API at port 8077.</p></article>
+            <article class="card soft-rose"><h3>It does not do</h3><p>Authenticate a user, require an API key, or block command-line tools and other servers from calling the API.</p></article>
+          </div>
+          <div class="callout"><strong>Cookie note:</strong><p>The app enables credentials in CORS, which permits browsers to include credential information when otherwise configured to do so. This backend does not thereby gain accounts or a login system.</p></div>
+          <h3>Startup: warm one reference book</h3>
+          <p>The FastAPI <em>lifespan</em> function runs startup work before the app serves requests. Truthfolio asks AMFI for its scheme directory early so the first search is usually faster. If that early attempt fails, the app still starts and a later request can try loading it again. NAV histories are not all downloaded at startup.</p>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/main.py · startup lifecycle</span><a href="../backend/app/main.py">Open source file ↗</a></div>
+            <pre><code>@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        await amfi.get_master()
+    except Exception:
+        pass  # will retry lazily on first request
+    yield</code></pre>
+          </div>
+          <p>The startup load is best-effort. The handler’s broad catch applies to startup warming, not to every route. The service can report health even if a later fund request cannot reach AMFI.</p>
+          <div class="chapter-end">End of chapter 2</div>
+        </section>
+
+        <section class="chapter" id="chapter-3">
+          <div class="chapter-head">
+            <div class="chapter-num">03</div>
+            <div><h2>Requests, routes, and validation</h2><p>A request has an address, an action, and sometimes data. The route is the backend function assigned to that combination.</p></div>
+          </div>
+          <h3>Read and send actions</h3>
+          <div class="grid two">
+            <article class="card soft-blue"><span class="tag">GET</span><h3>Ask for information</h3><p>Examples: <code>GET /api/search?q=parag</code>, or <code>GET /api/health</code>.</p></article>
+            <article class="card soft-green"><span class="tag">POST</span><h3>Send information or start work</h3><p>Examples: <code>POST /api/review</code> with a scheme code, or <code>POST /api/portfolio</code> with holdings.</p></article>
+          </div>
+          <h3>Validation as a form checker</h3>
+          <p>A request model is a Python description of allowed fields and values. Pydantic reads it and rejects invalid data before the route starts the main work.</p>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/models/schemas.py · request shapes</span><a href="../backend/app/models/schemas.py">Open source file ↗</a></div>
+            <pre><code>class ReviewRequest(BaseModel):
+    scheme_code: str
+    units: float | None = Field(None, ge=0)
+    invested_amount: float | None = Field(None, ge=0)
+
+class HoldingInput(BaseModel):
+    scheme_code: str
+    units: float = Field(..., gt=0)
+    avg_nav: float = Field(..., gt=0)
+
+class PortfolioRequest(BaseModel):
+    holdings: list[HoldingInput] = Field(..., min_length=1, max_length=40)</code></pre>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Rule</th><th>Meaning</th><th>Example of rejection</th></tr></thead>
+            <tbody>
+              <tr><td><code>gt=0</code></td><td>Must be greater than zero.</td><td>A holding with zero units.</td></tr>
+              <tr><td><code>ge=0</code></td><td>May be zero, but not negative.</td><td>A negative invested amount.</td></tr>
+              <tr><td><code>min_length=1, max_length=40</code></td><td>List must contain between 1 and 40 items.</td><td>Empty or oversized portfolio.</td></tr>
+              <tr><td><code>Literal["user","assistant"]</code></td><td>Only these exact chat roles are accepted.</td><td>An unexpected role value.</td></tr>
+            </tbody>
+          </table></div>
+          <p>Validation is not the same as confirming that a scheme exists. A scheme code can be correctly formatted and still be unknown to AMFI; the route performs that lookup after validation.</p>
+          <h3>Follow one real route</h3>
+          <p>This small route accepts a fund code, looks up the official scheme, asks the review function to do the analysis, and shapes the final response.</p>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/api/routes.py · review entry path (excerpt)</span><a href="../backend/app/api/routes.py">Open source file ↗</a></div>
+            <pre><code>async def _run_review(scheme_code: str, units=None, invested_amount=None):
+    master = await amfi.get_master()
+    scheme = master.get(scheme_code)
+    if scheme is None:
+        raise HTTPException(404, f"Scheme {scheme_code} not found in AMFI master.")
+    try:
+        state = await review_fund(
+            scheme_code=scheme.code, scheme_name=scheme.name,
+            category=scheme.category, base_name=scheme.base_name, amc=scheme.amc,
+            units=units, invested_amount=invested_amount,
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    return ReviewResponse(**assemble_review(
+        scheme_code=scheme.code, scheme_name=scheme.name,
+        category=scheme.category, state=state,
+    ))</code></pre>
+          </div>
+          <div class="timeline">
+            <div class="timeline-item"><div class="timeline-dot">1</div><div><strong>Find the fund directory.</strong><p><code>amfi.get_master()</code> returns the prepared catalog.</p></div></div>
+            <div class="timeline-item"><div class="timeline-dot">2</div><div><strong>Resolve the submitted code.</strong><p>If it is absent, return HTTP 404; do not guess from a free-text name.</p></div></div>
+            <div class="timeline-item"><div class="timeline-dot">3</div><div><strong>Run the review.</strong><p>The official name, category, and fund house are passed to the coordinator.</p></div></div>
+            <div class="timeline-item"><div class="timeline-dot">4</div><div><strong>Build a stable response.</strong><p><code>assemble_review()</code> shapes internal state; <code>ReviewResponse</code> describes the output.</p></div></div>
+          </div>
+          <div class="callout"><strong>Why a response builder?</strong><p>Several paths can produce a fund review: a direct request, a streaming request, or a portfolio holding. A shared assembler helps them return a consistent review shape.</p></div>
+          <div class="chapter-end">End of chapter 3</div>
+        </section>
+
+        <section class="chapter" id="chapter-4">
+          <div class="chapter-head">
+            <div class="chapter-num">04</div>
+            <div><h2>Finding the fund and loading NAV</h2><p>AMFI answers “which official scheme is this?” mfapi.in answers “what has its published NAV history been?”</p></div>
+          </div>
+          <div class="grid two">
+            <article class="card soft-green"><span class="tag">AMFI</span><h3>The official directory</h3><p>Its feed lists scheme codes, scheme names, fund houses, categories, plan/option details, and ISIN identifiers.</p></article>
+            <article class="card soft-blue"><span class="tag">mfapi.in</span><h3>The historical values</h3><p>Its per-scheme response contains NAV observations with dates. The backend turns them into ordered points.</p></article>
+          </div>
+          <h3>Why store scheme identity as a record?</h3>
+          <p>The <code>Scheme</code> dataclass groups the facts that belong together: official code, display name, base fund name, AMC, category, plan, option, and optional ISINs. A <code>SchemeMaster</code> keeps lookup indexes by code and ISIN, plus a search corpus for name matching.</p>
+          <p>Fuzzy search is tolerant of reordered or partial words, but the code also checks that distinctive words from the query actually appear. This reduces accidental matches on made-up names. Duplicate plan/option versions collapse into one fund result, preferring Direct-Growth where available.</p>
+          <h3>Search is not the same as trusting user text</h3>
+          <div class="flow-row">
+            <div class="flow-step"><b>Query text</b><span>“flexi parag”</span></div>
+            <div class="flow-step"><b>Find candidates</b><span>Compare with AMFI name corpus</span></div>
+            <div class="flow-step"><b>Apply precision gate</b><span>Check meaningful words matched</span></div>
+            <div class="flow-step"><b>Collapse variants</b><span>One result per base fund</span></div>
+            <div class="flow-step"><b>Return official code</b><span>Downstream work uses that identity</span></div>
+          </div>
+          <h3>A NAV point and a NAV series</h3>
+          <p><code>NavPoint</code> is one dated observation. <code>NavSeries</code> contains a scheme’s metadata and points sorted oldest to newest, and exposes useful values such as the start date, end date, and latest NAV.</p>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/data/navapi.py · parsing and ordering (excerpt)</span><a href="../backend/app/data/navapi.py">Open source file ↗</a></div>
+            <pre><code>for row in raw:
+    try:
+        d = datetime.strptime(row["date"], "%d-%m-%Y").date()
+        v = float(row["nav"])
+    except (KeyError, ValueError, TypeError):
+        continue
+    if v &lt;= 0:
+        continue
+    points.append(NavPoint(on=d, nav=v))
+
+points.sort(key=lambda p: p.on)</code></pre>
+          </div>
+          <div class="explain"><b>Parse date</b><span>Convert the date text from the service into Python’s date value.</span></div>
+          <div class="explain"><b>Parse NAV</b><span>Convert the NAV text into a number. A malformed row is skipped instead of breaking the entire series.</span></div>
+          <div class="explain"><b>Drop invalid value</b><span>Zero and negative NAV values are not useful input for return calculations.</span></div>
+          <div class="explain"><b>Sort chronologically</b><span>Every later calculation gets oldest-to-newest points.</span></div>
+          <h3>Make outside calls asynchronous and bounded</h3>
+          <p>The client uses <code>httpx.AsyncClient</code> to perform an asynchronous HTTP request and Tenacity to retry failures up to three attempts. A shared semaphore allows at most 16 NAV downloads at once in this running backend copy.</p>
+          <div class="callout"><strong>Why cap simultaneous downloads?</strong><p>A portfolio can trigger many holding reviews, and each review can compare peer funds. The semaphore is a traffic light that prevents an uncontrolled burst of requests to the NAV service.</p></div>
+          <div class="chapter-end">End of chapter 4</div>
+        </section>
+
+        <section class="chapter" id="chapter-5">
+          <div class="chapter-head">
+            <div class="chapter-num">05</div>
+            <div><h2>Cache and outside services</h2><p>A cache is a temporary saved copy, so the backend can reuse fresh public data rather than download it again.</p></div>
+          </div>
+          <h3>Three possible places the fund directory can come from</h3>
+          <div class="flow-row">
+            <div class="flow-step"><b>1 · Memory</b><span>Fastest; current running copy</span></div>
+            <div class="flow-step"><b>2 · JSON cache</b><span>Saved on the local filesystem</span></div>
+            <div class="flow-step"><b>3 · AMFI</b><span>Download and parse if no fresh copy</span></div>
+            <div class="flow-step"><b>4 · Index</b><span>Build code, ISIN, search indexes</span></div>
+            <div class="flow-step"><b>5 · Reuse</b><span>Memory copy until restart</span></div>
+          </div>
+          <p>For NAV history, the module checks the JSON cache. A fresh entry is parsed; a missing or old entry triggers a request to mfapi.in. The cache TTL defaults to 12 hours for NAV. The AMFI directory defaults to 24 hours on disk.</p>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/data/cache.py · TTL decision</span><a href="../backend/app/data/cache.py">Open source file ↗</a></div>
+            <pre><code>def read(key: str, ttl_seconds: float) -&gt; Any | None:
+    path = _path_for(key)
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+    if time.time() - payload.get("_ts", 0) &gt; ttl_seconds:
+        return None
+    return payload.get("data")</code></pre>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Code check</th><th>Plain meaning</th><th>Next action</th></tr></thead>
+            <tbody>
+              <tr><td>File missing</td><td>No copy is available.</td><td>Caller fetches source data.</td></tr>
+              <tr><td>JSON cannot be read</td><td>Copy is invalid or unreadable.</td><td>Treat as a cache miss.</td></tr>
+              <tr><td>Age exceeds TTL</td><td>Copy is too old for this feature.</td><td>Fetch a newer copy.</td></tr>
+              <tr><td>Fresh timestamp</td><td>Copy is within its allowed age.</td><td>Reuse stored data.</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout"><strong>What “best effort” means:</strong><p>Writing a cache copy is not allowed to break the actual request. If saving fails due to a file-system problem, the current request can still return the fetched data.</p></div>
+          <h3>Cache is not database storage</h3>
+          <ul>
+            <li>The cache contains reusable public data and selected computed results.</li>
+            <li>It is local to each backend copy; multiple instances do not share it.</li>
+            <li>It does not save user portfolios or act as an account record.</li>
+            <li>Deleting it means data may need to be downloaded or calculated again.</li>
+          </ul>
+          <h3>Outside services by feature</h3>
+          <div class="grid three">
+            <article class="card"><h3>AMFI</h3><p>Scheme directory and official scheme codes.</p></article>
+            <article class="card"><h3>mfapi.in</h3><p>Historical NAV series for a scheme code.</p></article>
+            <article class="card"><h3>Tavily</h3><p>Search results for explicitly requested research or Market Pulse.</p></article>
+            <article class="card"><h3>Anthropic</h3><p>Optional language-model provider.</p></article>
+            <article class="card"><h3>Groq</h3><p>Alternative optional language-model provider.</p></article>
+            <article class="card soft-rose"><h3>No provider required</h3><p>Ordinary fund metrics, peer ranking, and verdict calculations.</p></article>
+          </div>
+          <div class="chapter-end">End of chapter 5</div>
+        </section>
+
+        <section class="chapter" id="chapter-6">
+          <div class="chapter-head">
+            <div class="chapter-num">06</div>
+            <div><h2>Review workflow and LangGraph</h2><p>The graph is an ordered checklist with a shared clipboard. It coordinates steps but does not decide the order with AI.</p></div>
+          </div>
+          <h3>Why break one review into specialists?</h3>
+          <p>Each specialist has one responsibility: gather measurements, compare peers, prepare evidence, synthesize the result, or write an explanation. Keeping these jobs separate makes the result easier to inspect, test, and stream as progress.</p>
+          <figure class="diagram">
+            <svg viewBox="0 0 940 300" role="img" aria-label="Fund review specialist sequence">
+              <defs><marker id="a4" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0 L0 6 L8 3z" fill="#668777"></path></marker></defs>
+              <g font-family="system-ui,sans-serif" text-anchor="middle">
+                <g><rect x="20" y="70" width="145" height="88" rx="17" fill="#dff3e9" stroke="#a7cdb5"></rect><text x="92" y="101" fill="#174b3c" font-size="13" font-weight="700">gather_quant</text><text x="92" y="124" fill="#48685a" font-size="11">NAV → metrics</text><text x="92" y="142" fill="#48685a" font-size="10">track record facts</text></g>
+                <g><rect x="205" y="70" width="145" height="88" rx="17" fill="#e8f0fb" stroke="#c5d5e9"></rect><text x="277" y="101" fill="#284c78" font-size="13" font-weight="700">gather_peers</text><text x="277" y="124" fill="#526b89" font-size="11">same category</text><text x="277" y="142" fill="#526b89" font-size="10">percentile ranks</text></g>
+                <g><rect x="390" y="70" width="145" height="88" rx="17" fill="#fff2d6" stroke="#eadbb5"></rect><text x="462" y="101" fill="#77500e" font-size="13" font-weight="700">build_evidence</text><text x="462" y="124" fill="#887044" font-size="11">facts + sources</text><text x="462" y="142" fill="#887044" font-size="10">readable ledger</text></g>
+                <g><rect x="575" y="70" width="145" height="88" rx="17" fill="#fae9e7" stroke="#e6c5bf"></rect><text x="647" y="101" fill="#8a3333" font-size="13" font-weight="700">synthesise</text><text x="647" y="124" fill="#8a5551" font-size="11">fixed rules</text><text x="647" y="142" fill="#8a5551" font-size="10">score + verdict</text></g>
+                <g><rect x="760" y="70" width="160" height="88" rx="17" fill="#e8f0fb" stroke="#c5d5e9"></rect><text x="840" y="101" fill="#284c78" font-size="13" font-weight="700">narrate</text><text x="840" y="124" fill="#526b89" font-size="11">optional AI wording</text><text x="840" y="142" fill="#526b89" font-size="10">or code template</text></g>
+                <path d="M165 114h34 M350 114h34 M535 114h34 M720 114h34" stroke="#668777" stroke-width="2.5" marker-end="url(#a4)"></path>
+                <rect x="180" y="212" width="580" height="50" rx="14" fill="#f2f7f2" stroke="#d1dfd4"></rect>
+                <text x="470" y="242" fill="#36584a" font-size="13">Supervisor chooses each next step from a written Python plan</text>
+                <path d="M92 160v38h748v-38" fill="none" stroke="#97b9a2" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a4)"></path>
+              </g>
+            </svg>
+            <figcaption>Figure 2. Every specialist reports back to the supervisor. The supervisor reads the remaining plan and chooses the next node.</figcaption>
+          </figure>
+          <h3>The plans are explicit data</h3>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/agent/supervisor.py · task plans</span><a href="../backend/app/agent/supervisor.py">Open source file ↗</a></div>
+            <pre><code>PLANS = {
+    "fund_review": [
+        "gather_quant", "gather_peers", "build_evidence",
+        "synthesise", "narrate",
+    ],
+    "fund_review_deep": [
+        "gather_quant", "gather_peers", "gather_research",
+        "build_evidence", "synthesise", "narrate",
+    ],
+    "research_only": ["gather_research"],
+    "fund_insights": [
+        "gather_quant", "gather_peers", "build_evidence",
+        "synthesise", "generate_insights",
+    ],
+}</code></pre>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Task name</th><th>Sequence</th><th>Typical caller</th></tr></thead>
+            <tbody>
+              <tr><td><code>fund_review</code></td><td>Metrics → peers → evidence → verdict → narrative</td><td><code>/review</code>, review stream, portfolio holding</td></tr>
+              <tr><td><code>fund_review_deep</code></td><td>Standard sequence plus research before evidence</td><td>Available in code; not the default review route</td></tr>
+              <tr><td><code>research_only</code></td><td>Research specialist</td><td><code>/research</code></td></tr>
+              <tr><td><code>fund_insights</code></td><td>Metrics → peers → evidence → verdict → insight cards</td><td><code>/insights</code></td></tr>
+            </tbody>
+          </table></div>
+          <h3>What a “state” is</h3>
+          <p><code>AgentState</code> is a typed dictionary shared across steps. Think of it as a clipboard: the quant specialist writes metrics, the peer specialist adds ranks, and later specialists read those fields and add their own results.</p>
+          <div class="grid two">
+            <article class="card"><h3>Analysis values</h3><p><code>metrics</code>, <code>qualitative</code>, <code>peers</code>, <code>evidence</code>, score, verdict, and narrative.</p></article>
+            <article class="card"><h3>Control and progress</h3><p><code>task</code>, remaining <code>plan</code>, next-node name, progress <code>steps</code>, and whether optional AI was used.</p></article>
+          </div>
+          <h3>One subtle but important boundary</h3>
+          <p>Deep review can add researched web claims to the evidence list. The current <code>synthesise()</code> function receives metrics and peer data, not the combined evidence list. Therefore those web claims can enrich the evidence/explanation output, but do not alter the numeric score, confidence, or standard verdict.</p>
+          <div class="chapter-end">End of chapter 6</div>
+        </section>
+
+        <section class="chapter" id="chapter-7">
+          <div class="chapter-head">
+            <div class="chapter-num">07</div>
+            <div><h2>Metrics, evidence, and verdict</h2><p>Published NAV points become returns and risk measurements; the rules turn available measurements into a score and a named outcome.</p></div>
+          </div>
+          <h3>First clean and order the timeline</h3>
+          <p><code>analysis/metrics.py</code> creates a dated Pandas series, removes duplicate dates (keeping the last), and sorts in chronological order. NumPy and Pandas help organize and calculate values; they do not decide the product’s scoring policy.</p>
+          <div class="math">daily return = today’s NAV ÷ previous NAV − 1<br>example: 105 ÷ 100 − 1 = 0.05 = 5%</div>
+          <div class="grid two">
+            <article class="card soft-green"><h3>Growth and consistency</h3><p>Trailing 1-, 3-, and 5-year returns; since-inception CAGR; rolling 3- and 5-year outcomes over multiple start dates.</p></article>
+            <article class="card soft-blue"><h3>Risk and downside</h3><p>Annualized volatility, Sharpe ratio, Sortino ratio, and maximum drawdown from a previous peak.</p></article>
+          </div>
+          <h3>Returns need a comparison group</h3>
+          <p>A return can be high or low depending on the wider market. Peer comparison selects same-category Direct-Growth schemes, excludes the subject from the candidate set, limits each AMC to two schemes, and analyzes at most 18 peers. The reported comparison includes the subject fund among the ranked values.</p>
+          <p>A percentile is an approximate position in that comparison set. For example, 0.80 means the value is at least as good as about 80% of the compared values, while respecting whether high or low is better for that metric.</p>
+          <h3>How the composite score is built</h3>
+          <p>Each available component receives a 0–100 sub-score. Each component also has a fixed importance share. If a component is unavailable due to insufficient history, the remaining used weights are effectively normalized by dividing by their sum.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Component</th><th>Weight</th><th>What it reflects</th></tr></thead>
+            <tbody>
+              <tr><td>Long-term return</td><td>0.22</td><td>5-year CAGR, or 3-year when 5-year is unavailable; 0–20% maps to 0–100, capped.</td></tr>
+              <tr><td>Risk-adjusted</td><td>0.26</td><td>Average available Sharpe and Sortino; 0 to 1.5 maps to 0–100, capped.</td></tr>
+              <tr><td>Peer standing</td><td>0.30</td><td>Average available percentiles for 3-year return, 5-year return, and Sharpe.</td></tr>
+              <tr><td>Consistency</td><td>0.14</td><td>Negative rolling periods; prefers five-year windows.</td></tr>
+              <tr><td>Drawdown</td><td>0.08</td><td>Worst peak-to-trough fall; less severe fall earns a higher score.</td></tr>
+            </tbody>
+          </table></div>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/agent/verdict.py · weights and final decision (excerpt)</span><a href="../backend/app/agent/verdict.py">Open source file ↗</a></div>
+            <pre><code>WEIGHTS = {
+    "long_term_return": 0.22,
+    "risk_adjusted": 0.26,
+    "peer_standing": 0.30,
+    "consistency": 0.14,
+    "drawdown": 0.08,
+}
+
+health = (weighted_sum / present_weight) if present_weight else 0.0
+
+if health &gt;= 62 and (peer_pct is None or peer_pct &gt;= 0.45):
+    verdict = "Continue"
+elif health &lt; 42:
+    verdict = "Stop"
+elif peer_pct is not None and peer_pct &lt; 0.45:
+    verdict = "Shift"
+else:
+    verdict = "Continue" if health &gt;= 55 else "Shift"</code></pre>
+          </div>
+          <div class="explain"><b>Weighted sum</b><span>Multiply each available sub-score by its weight and add the results.</span></div>
+          <div class="explain"><b>Available weight</b><span>Add only the weights of components that had enough data.</span></div>
+          <div class="explain"><b>Health score</b><span>Divide weighted sum by available weight. If none are available, return zero.</span></div>
+          <div class="explain"><b>Verdict</b><span>Apply the thresholds in order. Peer standing can distinguish “Continue” from “Shift”; a very low absolute health score can produce “Stop.”</span></div>
+          <h3>Evidence explains; rules decide</h3>
+          <p><code>build_evidence()</code> turns metric and peer facts into readable items. An item can include a claim, category, direction, importance weight, confidence, and source references. The ledger helps people inspect the reasons. The arithmetic score is produced by the explicit scoring functions.</p>
+          <div class="callout"><strong>Not regulated advice:</strong><p>Thresholds and portfolio rules are product rules of thumb. They are not regulated ratings, promises, or personalized investment instructions.</p></div>
+          <div class="chapter-end">End of chapter 7</div>
+        </section>
+
+        <section class="chapter" id="chapter-8">
+          <div class="chapter-head">
+            <div class="chapter-num">08</div>
+            <div><h2>SSE, explained in code</h2><p>Server-Sent Events keep one HTTP response open so the server can send progress updates before the final result.</p></div>
+          </div>
+          <h3>Normal response or progress stream?</h3>
+          <div class="grid two">
+            <article class="card soft-blue"><span class="tag">Ordinary route</span><h3>Wait, then get one answer</h3><p><code>POST /api/review</code> waits for the review and returns one JSON object.</p></article>
+            <article class="card soft-green"><span class="tag">SSE route</span><h3>Get updates, then the answer</h3><p><code>GET /api/review/stream</code> sends named progress events, then a final result event.</p></article>
+          </div>
+          <div class="math">event: step<br>data: {"message":"Compared against same-category peers"}<br><br>event: result<br>data: { ...final review... }</div>
+          <p>An event consists of an event name and a data line. A blank line ends the event. The stream flows from the server to the caller; the caller does not send new instructions through that same stream.</p>
+          <h3>Frame builder: two lines plus a blank line</h3>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/api/routes.py · SSE frame</span><a href="../backend/app/api/routes.py">Open source file ↗</a></div>
+            <pre><code>def _sse(event: str, data: dict) -&gt; str:
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"</code></pre>
+          </div>
+          <div class="explain"><b>Event line</b><span><code>event: step</code> or <code>event: result</code> lets the receiver distinguish message types.</span></div>
+          <div class="explain"><b>Data line</b><span>The Python dictionary is converted to JSON text for the stream.</span></div>
+          <div class="explain"><b>Blank line</b><span>The final <code>\n\n</code> tells the receiver this event is complete.</span></div>
+          <h3>Streaming a fund review</h3>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/api/routes.py · event generator (excerpt)</span><a href="../backend/app/api/routes.py">Open source file ↗</a></div>
+            <pre><code>async for chunk in graph.astream(initial, stream_mode="values"):
+    final_state = chunk
+    steps = chunk.get("steps", [])
+    for step in steps[last_steps:]:
+        yield _sse("step", {"message": step})
+    last_steps = len(steps)
+
+result = assemble_review(..., state=final_state)
+yield _sse("result", result)
+
+return StreamingResponse(event_gen(), media_type="text/event-stream")</code></pre>
+          </div>
+          <p>The graph emits updated state values as its nodes finish. The route remembers how many progress messages it already sent, then sends only the new ones. At the end, it builds the same review response as the ordinary path and emits it as <code>result</code>.</p>
+          <h3>Streaming a portfolio</h3>
+          <p>The portfolio stream emits <code>start</code>, then a <code>holding</code> event whenever an analysis finishes, and finally <code>result</code>. The completed-holding order can differ from the order submitted because tasks are collected as they finish.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Event</th><th>What it means</th><th>When sent</th></tr></thead>
+            <tbody>
+              <tr><td><code>start</code></td><td>How many holdings are being analyzed.</td><td>At stream start.</td></tr>
+              <tr><td><code>step</code></td><td>A new review-progress message.</td><td>As a fund-review node adds a step.</td></tr>
+              <tr><td><code>holding</code></td><td>One portfolio holding succeeded or failed.</td><td>When each holding task finishes.</td></tr>
+              <tr><td><code>result</code></td><td>Final review or aggregate portfolio result.</td><td>At successful completion.</td></tr>
+              <tr><td><code>error</code></td><td>A stream-level failure message.</td><td>When an error is reported after streaming begins.</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout"><strong>HTTP status vs stream error:</strong><p>The HTTP response status is chosen when the stream starts. An error discovered after that point is commonly carried as an SSE <code>error</code> event instead of changing the already-started HTTP status.</p></div>
+          <div class="chapter-end">End of chapter 8</div>
+        </section>
+
+        <section class="chapter" id="chapter-9">
+          <div class="chapter-head">
+            <div class="chapter-num">09</div>
+            <div><h2>Portfolio analysis</h2><p>Each submitted holding receives the same fund-review treatment, then a separate calculation combines successful holdings.</p></div>
+          </div>
+          <h3>What a holding needs</h3>
+          <div class="math">scheme_code + units held + average purchase NAV</div>
+          <p><code>PortfolioRequest</code> allows between 1 and 40 holdings. A holding with a missing scheme, failed review, or missing latest NAV is not included in the successful aggregate.</p>
+          <h3>One holding’s path</h3>
+          <div class="timeline">
+            <div class="timeline-item"><div class="timeline-dot">1</div><div><strong>Find scheme identity.</strong><p>Resolve the supplied official scheme code against the AMFI directory.</p></div></div>
+            <div class="timeline-item"><div class="timeline-dot">2</div><div><strong>Calculate amount invested.</strong><p>Multiply units by the average purchase NAV supplied by the caller.</p></div></div>
+            <div class="timeline-item"><div class="timeline-dot">3</div><div><strong>Run the same fund-review graph.</strong><p>Gather NAV metrics, compare peers, build evidence, score, and explain.</p></div></div>
+            <div class="timeline-item"><div class="timeline-dot">4</div><div><strong>Add personal position figures.</strong><p>Use the latest NAV from the computed report to calculate current value and gain.</p></div></div>
+          </div>
+          <h3>Personal position equations</h3>
+          <div class="math">invested = units × average purchase NAV<br>current value = units × latest NAV<br>gain = current value − invested<br>return fraction = gain ÷ invested</div>
+          <p>The returned personal return is a fraction: <code>0.10</code> means 10%. It is total return from the supplied cost basis, not annualized. The request does not contain purchase dates or cash flows, so the backend cannot derive a time-weighted personal return.</p>
+          <h3>Concurrency: many analyses, bounded downloads</h3>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/api/routes.py · parallel holding analyses (excerpt)</span><a href="../backend/app/api/routes.py">Open source file ↗</a></div>
+            <pre><code>inputs = [HoldingInput(h.scheme_code, h.units, h.avg_nav) for h in req.holdings]
+results = await asyncio.gather(*(analyze_holding(h) for h in inputs))
+valid = [result for result in results if result is not None]
+if not valid:
+    raise HTTPException(422, "None of the submitted funds could be analysed.")</code></pre>
+          </div>
+          <p><code>asyncio.gather()</code> starts the holding analyses without waiting for each one to finish before starting the next. Separately, the NAV semaphore limits how many network downloads happen simultaneously. So the backend can work on many holdings while still controlling the outside request rate.</p>
+          <h3>Aggregate the successful holdings</h3>
+          <ul>
+            <li>Sum invested value, current value, gain/loss, and total return.</li>
+            <li>Calculate each holding’s share of current portfolio value.</li>
+            <li>Group current value by fund category.</li>
+            <li>Measure concentration using HHI: square each holding’s share and add the squares.</li>
+            <li>Calculate current-value-weighted portfolio health, then apply a concentration penalty.</li>
+            <li>Return a portfolio verdict, best/worst personal return, and action observations.</li>
+          </ul>
+          <div class="math">HHI = share₁² + share₂² + … + shareₙ²<br>Two equal holdings: 0.5² + 0.5² = 0.50<br>One holding: 1.0² = 1.00</div>
+          <p>The synchronous route returns the final portfolio object once. The streaming route reports each holding completion and then calls the same portfolio aggregation logic for the final result.</p>
+          <div class="chapter-end">End of chapter 9</div>
+        </section>
+
+        <section class="chapter" id="chapter-10">
+          <div class="chapter-head">
+            <div class="chapter-num">10</div>
+            <div><h2>CAS statement import</h2><p>A Consolidated Account Statement is uploaded, parsed for active holdings, and matched to the official scheme directory.</p></div>
+          </div>
+          <p>CAMS and KFintech maintain mutual-fund account records. The route accepts a PDF and optional password. The <code>casparser</code> library reads it. Because PDF parsing is blocking work, the backend sends it to a worker thread so the main asynchronous request loop can continue serving other requests.</p>
+          <figure class="diagram">
+            <svg viewBox="0 0 880 360" role="img" aria-label="CAS import process with size check, parse, match and response">
+              <defs><marker id="a5" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0 L0 6 L8 3z" fill="#668777"></path></marker></defs>
+              <g font-family="system-ui,sans-serif">
+                <rect x="22" y="120" width="140" height="82" rx="15" fill="#102e2b"></rect><text x="92" y="153" text-anchor="middle" fill="white" font-size="14" font-weight="700">PDF + password</text><text x="92" y="176" text-anchor="middle" fill="#c9e2d5" font-size="11">one request</text>
+                <rect x="215" y="120" width="150" height="82" rx="15" fill="#dff3e9" stroke="#a7cdb5"></rect><text x="290" y="153" text-anchor="middle" fill="#174b3c" font-size="14" font-weight="700">Size check</text><text x="290" y="176" text-anchor="middle" fill="#48685a" font-size="11">limit + 1 bytes</text>
+                <polygon points="455,110 510,160 455,210 400,160" fill="#fff2d6" stroke="#eadbb5"></polygon><text x="455" y="156" text-anchor="middle" fill="#77500e" font-size="11" font-weight="700">Within</text><text x="455" y="172" text-anchor="middle" fill="#77500e" font-size="11" font-weight="700">limit?</text>
+                <rect x="575" y="44" width="142" height="70" rx="14" fill="#fae9e7" stroke="#e6c5bf"></rect><text x="646" y="74" text-anchor="middle" fill="#8a3333" font-size="13" font-weight="700">Reject · HTTP 413</text><text x="646" y="95" text-anchor="middle" fill="#8a5551" font-size="10">too large</text>
+                <rect x="575" y="220" width="142" height="70" rx="14" fill="#e8f0fb" stroke="#c5d5e9"></rect><text x="646" y="250" text-anchor="middle" fill="#284c78" font-size="13" font-weight="700">Parse on worker</text><text x="646" y="271" text-anchor="middle" fill="#526b89" font-size="10">bytes in memory</text>
+                <rect x="758" y="220" width="105" height="70" rx="14" fill="#dff3e9" stroke="#a7cdb5"></rect><text x="810" y="250" text-anchor="middle" fill="#174b3c" font-size="12" font-weight="700">Match AMFI</text><text x="810" y="271" text-anchor="middle" fill="#48685a" font-size="10">code → ISIN</text>
+                <path d="M162 161h48 M365 161h29 M510 160h44v-81h18 M510 160h44v95h7 M717 255h36" fill="none" stroke="#668777" stroke-width="2.5" marker-end="url(#a5)"></path>
+                <text x="535" y="66" fill="#8a5551" font-size="10">No</text><text x="532" y="224" fill="#48685a" font-size="10">Yes</text>
+                <rect x="555" y="310" width="308" height="34" rx="10" fill="#f0f8f2" stroke="#d2e6d9"></rect><text x="709" y="332" text-anchor="middle" fill="#31564b" font-size="11">Return matched holdings, unmatched names, and statement status</text>
+                <path d="M810 290v17" stroke="#668777" stroke-width="2" marker-end="url(#a5)"></path>
+              </g>
+            </svg>
+            <figcaption>Figure 3. The upload is size-limited, parsed in a worker thread, then matched against AMFI identifiers.</figcaption>
+          </figure>
+          <h3>Read a limited number of bytes</h3>
+          <div class="code-card">
+            <div class="code-head"><span>backend/app/api/routes.py · upload boundary (excerpt)</span><a href="../backend/app/api/routes.py">Open source file ↗</a></div>
+            <pre><code>data = await file.read(settings.cas_max_bytes + 1)
+...
+if len(data) &gt; settings.cas_max_bytes:
+    raise HTTPException(413, "File is too large...")
+
+result = await asyncio.to_thread(cas_import.import_cas, data, password, master)</code></pre>
+          </div>
+          <p>Reading at most the limit plus one byte makes it possible to detect an oversized upload without reading the whole file. The default maximum is 15,000,000 bytes. The parser returns active schemes with closing units above zero and tries to match them using AMFI code first, then ISIN.</p>
+          <div class="grid two">
+            <article class="card soft-gold"><h3>Freshness policy</h3><p>By default, statements older than 30 days get a warning. Statements older than 90 days are rejected.</p></article>
+            <article class="card soft-rose"><h3>Sensitive content</h3><p>The route does not intentionally write or log the PDF/password or send them to search or AI. It clears its local references after parsing; this is not a guaranteed secure erase of Python memory.</p></article>
+          </div>
+          <p>Import prepares holdings; it does not itself run the portfolio analysis. The returned holdings are submitted to <code>/portfolio</code> or <code>/portfolio/stream</code> for review.</p>
+          <div class="chapter-end">End of chapter 10</div>
+        </section>
+
+        <section class="chapter" id="chapter-11">
+          <div class="chapter-head">
+            <div class="chapter-num">11</div>
+            <div><h2>Optional AI and web research</h2><p>AI is an optional writing and synthesis tool around calculated data; web research is explicit and gated separately.</p></div>
+          </div>
+          <h3>Feature gates</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Setting/property</th><th>What must be configured</th><th>Enables</th></tr></thead>
+            <tbody>
+              <tr><td><code>llm_enabled</code></td><td>Key for selected provider</td><td>Narrative, chats, AI insight cards</td></tr>
+              <tr><td><code>search_enabled</code></td><td>Tavily key</td><td>Search requests</td></tr>
+              <tr><td><code>research_enabled</code></td><td>LLM key and Tavily key</td><td>Claim appraisal and research summaries</td></tr>
+            </tbody>
+          </table></div>
+          <p><code>/capabilities</code> reports whether these features appear configured. A capability response is for feature discovery; the route checks configuration again when a request is actually made.</p>
+          <h3>AI writes around the result; it does not replace the result</h3>
+          <div class="flow-row">
+            <div class="flow-step"><b>Code computes</b><span>Metrics, peer ranks, score, verdict</span></div>
+            <div class="flow-step"><b>Prepare context</b><span>Send existing results to model</span></div>
+            <div class="flow-step"><b>Model drafts</b><span>Narrative text or insight cards</span></div>
+            <div class="flow-step"><b>Backend checks</b><span>Keep fixed verdict and caveats</span></div>
+            <div class="flow-step"><b>Return result</b><span>Use template if optional AI fails</span></div>
+          </div>
+          <p>If there is no key, the standard review uses a deterministic narrative template. If the configured model call fails, the backend also uses a template. The arithmetic verdict remains unchanged.</p>
+          <h3>Research is on-demand</h3>
+          <p><code>GET /api/research</code> is the explicit fund-research path. It asks Tavily for two kinds of search (fund facts and recent news/regulatory context), then screens and appraises results before asking an LLM to extract cited claims.</p>
+          <div class="timeline">
+            <div class="timeline-item"><div class="timeline-dot">1</div><div><strong>Search.</strong><p>Fetch results for the requested topics, subject to the daily cap and cache.</p></div></div>
+            <div class="timeline-item"><div class="timeline-dot">2</div><div><strong>Clean and appraise.</strong><p>Drop unusable result rows and calculate a transparent source score using domain, date, and corroboration.</p></div></div>
+            <div class="timeline-item"><div class="timeline-dot">3</div><div><strong>Build citations.</strong><p>Deduplicate source URLs and assign stable first-use numbers.</p></div></div>
+            <div class="timeline-item"><div class="timeline-dot">4</div><div><strong>Extract claims.</strong><p>Ask the model for concise claims with citation numbers; reject claims without valid citations.</p></div></div>
+          </div>
+          <div class="callout"><strong>Credit boundary:</strong><p>The ordinary fund review does not automatically spend Tavily credits. Research and Market Pulse are separate features. Search results that fail do not increment the successful uncached-request counter.</p></div>
+          <h3>What data goes to outside AI?</h3>
+          <div class="grid two">
+            <article class="card soft-green"><h3>Deterministic path</h3><p>Ordinary NAV metrics, peer ranking, and the numeric verdict are computed in this backend. They do not need an LLM provider.</p></article>
+            <article class="card soft-rose"><h3>Optional path</h3><p>When a feature calls an LLM or search service, the context needed for that feature is sent to that outside provider. Chat services do not store a server-side transcript.</p></article>
+          </div>
+          <div class="chapter-end">End of chapter 11</div>
+        </section>
+
+        <section class="chapter" id="chapter-12">
+          <div class="chapter-head">
+            <div class="chapter-num">12</div>
+            <div><h2>Operations and system boundaries</h2><p>How configuration, errors, limits, and process-local memory shape what operators should expect.</p></div>
+          </div>
+          <h3>Where settings come from</h3>
+          <p><code>Settings</code> uses Pydantic Settings to read environment variables and a local <code>.env</code> file. Most settings use the <code>HPR_</code> prefix. Provider selection and keys accept both common unprefixed names and prefixed alternatives.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Area</th><th>Example setting</th><th>Typical default</th></tr></thead>
+            <tbody>
+              <tr><td>Web server / browser</td><td><code>HPR_CORS_ORIGINS</code></td><td>Local frontend addresses on port 3000</td></tr>
+              <tr><td>Outside data</td><td><code>HPR_HTTP_TIMEOUT_SECONDS</code></td><td>20 seconds</td></tr>
+              <tr><td>Saved data freshness</td><td><code>HPR_NAV_TTL_HOURS</code></td><td>12 hours</td></tr>
+              <tr><td>AI provider</td><td><code>LLM_PROVIDER</code>, provider API key</td><td>Anthropic selected; no key by default</td></tr>
+              <tr><td>Search cost control</td><td><code>HPR_SEARCH_DAILY_CAP</code></td><td>60 successful uncached calls per running copy/day</td></tr>
+              <tr><td>CAS upload safety</td><td><code>HPR_CAS_MAX_BYTES</code></td><td>15,000,000 bytes</td></tr>
+            </tbody>
+          </table></div>
+          <h3>Common outcomes</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Situation</th><th>Typical result</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td>Request model rejects values</td><td>HTTP 422</td><td>Input did not match accepted fields or limits.</td></tr>
+              <tr><td>Scheme code not in AMFI master</td><td>HTTP 404</td><td>No official scheme matched that code.</td></tr>
+              <tr><td>Chat provider not configured</td><td>HTTP 503</td><td>Optional feature is unavailable.</td></tr>
+              <tr><td>Daily cap reached</td><td>HTTP 429</td><td>Wait for the usage window to reset.</td></tr>
+              <tr><td>Known chat provider failure</td><td>HTTP 502</td><td>Outside provider could not produce a usable answer.</td></tr>
+              <tr><td>CAS too large</td><td>HTTP 413</td><td>Uploaded file exceeds configured limit.</td></tr>
+              <tr><td>Optional narrative fails</td><td>Template narrative</td><td>Core score/verdict can still be returned.</td></tr>
+            </tbody>
+          </table></div>
+          <h3>What belongs to one running copy?</h3>
+          <div class="grid three">
+            <article class="card"><h3>Memory</h3><p>Loaded AMFI master, compiled graph, and usage counters remain in a process’s memory.</p></article>
+            <article class="card"><h3>Local disk</h3><p>JSON cache files live in that instance’s configured cache folder.</p></article>
+            <article class="card"><h3>Not shared automatically</h3><p>Multiple app instances have separate in-memory counters and may have separate filesystems.</p></article>
+          </div>
+          <h3>Limits to keep in mind</h3>
+          <ul>
+            <li>Portfolio requests accept at most 40 holdings.</li>
+            <li>At most 16 NAV downloads run at the same time in one backend process.</li>
+            <li>Peer ranking uses at most 18 peers; recommendation scanning considers up to 120 candidates.</li>
+            <li>Chat messages and context have field, message-count, and total-size limits.</li>
+            <li>Tavily and chat counters live in memory, are not per-user, and are not shared across service instances.</li>
+            <li>There is no database, user login, persistent portfolio storage, or background job queue in this backend.</li>
+          </ul>
+          <div class="callout danger"><strong>Deployment implication:</strong><p>A short-lived serverless setup can restart between requests, and multiple replicas do not share these process-local values. If a deployment needs a single global quota or shared cache, it needs additional shared storage or coordination.</p></div>
+          <h3>Run and test locally</h3>
+          <div class="code-card">
+            <div class="code-head"><span>Commands from the backend package configuration</span><a href="../backend/pyproject.toml">Open pyproject.toml ↗</a></div>
+            <pre><code>cd backend
+uv venv .venv
+uv pip install -e ".[dev]"
+.venv/bin/uvicorn app.main:app --reload --port 8077
+
+# In another terminal:
+.venv/bin/python -m pytest -q</code></pre>
+          </div>
+          <p>The interactive API reference is available at <code>http://localhost:8077/docs</code> while the server is running. It is generated from the route declarations and request/response models.</p>
+          <div class="chapter-end">End of chapter 12</div>
+        </section>
+
+        <section class="chapter" id="appendix">
+          <div class="chapter-head">
+            <div class="chapter-num">A</div>
+            <div><h2>Appendix: how the folders fit together</h2><p>A quick index from a question you have to the place in the code most likely to answer it.</p></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Folder / file</th><th>It is responsible for</th><th>Start here when asking…</th></tr></thead>
+            <tbody>
+              <tr><td><code>app/main.py</code></td><td>App object, CORS, lifespan, route prefix.</td><td>How does the service start?</td></tr>
+              <tr><td><code>app/api/routes.py</code></td><td>17 endpoints, error mapping, responses, streams.</td><td>What happens when this URL is called?</td></tr>
+              <tr><td><code>app/models/schemas.py</code></td><td>Input/output shapes and validation.</td><td>Why is this request rejected?</td></tr>
+              <tr><td><code>app/config.py</code></td><td>Environment settings and feature availability.</td><td>Which keys or limits enable this?</td></tr>
+              <tr><td><code>app/agent/graph.py</code></td><td>Stable review/research/insight entry functions.</td><td>How does API reach the graph?</td></tr>
+              <tr><td><code>app/agent/supervisor.py</code></td><td>Task plans, specialist dispatch, compiled graph.</td><td>What order do review steps run in?</td></tr>
+              <tr><td><code>app/agent/nodes.py</code></td><td>Each specialist function.</td><td>What does this graph step calculate?</td></tr>
+              <tr><td><code>app/agent/state.py</code></td><td>Shared state, evidence, source and verdict types.</td><td>How do steps exchange values?</td></tr>
+              <tr><td><code>app/agent/verdict.py</code></td><td>Evidence builder, score and verdict rules.</td><td>How is a fund score decided?</td></tr>
+              <tr><td><code>app/analysis/metrics.py</code></td><td>Returns and risk measurements from NAV.</td><td>How is a metric calculated?</td></tr>
+              <tr><td><code>app/analysis/peers.py</code></td><td>Peer selection and percentiles.</td><td>How are similar funds compared?</td></tr>
+              <tr><td><code>app/analysis/portfolio.py</code></td><td>Personal holding and aggregate math.</td><td>How are holdings combined?</td></tr>
+              <tr><td><code>app/data/amfi.py</code></td><td>AMFI parser, scheme records, search indexes.</td><td>How is a real fund code found?</td></tr>
+              <tr><td><code>app/data/navapi.py</code></td><td>NAV network client, parsing, retry, concurrency limit.</td><td>How does the backend get history?</td></tr>
+              <tr><td><code>app/data/cache.py</code></td><td>Local JSON cache with TTL.</td><td>Why did it reuse a saved response?</td></tr>
+              <tr><td><code>app/data/cas_import.py</code></td><td>CAS parsing, age policy and scheme matching.</td><td>How is an uploaded statement handled?</td></tr>
+            </tbody>
+          </table></div>
+          <h3>Mini glossary</h3>
+          <div class="grid two">
+            <article class="card"><h3>ASGI</h3><p>The standard interface connecting Uvicorn to an asynchronous Python web application.</p></article>
+            <article class="card"><h3>Middleware</h3><p>Helper code that runs around a request or response, such as CORS handling.</p></article>
+            <article class="card"><h3>TTL</h3><p>Time to live: how long a saved copy can be treated as fresh.</p></article>
+            <article class="card"><h3>Semaphore</h3><p>A counter acting like a traffic light: only a fixed number of tasks may pass at once.</p></article>
+            <article class="card"><h3>Dataclass</h3><p>A Python helper that creates a simple record-like class for related values.</p></article>
+            <article class="card"><h3>Deterministic</h3><p>Given the same inputs and settings, the code follows the same rules and produces the same calculation.</p></article>
+          </div>
+          <div class="book-note">
+            <div class="icon">🧭</div>
+            <p><strong>Keep exploring.</strong> For a concise endpoint and module reference, return to
+              <a href="./BACKEND.md">the existing backend handbook</a>. For the exact implementation,
+              open any linked source file in this book and follow its imports to the next layer.</p>
+          </div>
+          <div class="chapter-end">End of book</div>
+        </section>
+
+        <footer class="footer">
+          <p><strong>Inside Truthfolio — A Visual Backend Book</strong></p>
+          <p>Companion to the backend reference. Written to explain this repository’s current implementation; it is not a general FastAPI reference or investment advice. Verify source code when implementation changes.</p>
+          <p><a href="./BACKEND.md">Read the concise backend handbook</a> · <a href="../backend/app/main.py">Open the backend entry point</a></p>
+        </footer>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
