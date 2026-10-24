@@ -43,6 +43,7 @@ class AgentState(TypedDict, total=False):
 
     # --- gathered artifacts (as plain dicts for serialisability) ---
     metrics: dict[str, Any]
+    qualitative: dict[str, Any]
     peers: dict[str, Any]
     evidence: list[EvidenceItem]
     research_evidence: list[EvidenceItem]

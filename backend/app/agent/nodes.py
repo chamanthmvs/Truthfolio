@@ -19,13 +19,20 @@ from app.data import navapi
 
 
 async def gather_quant(state: AgentState) -> AgentState:
+    from app.analysis import qualitative
+
     nav = await navapi.get_nav_series(state["scheme_code"])
     report = compute_metrics(nav)
     steps = state.get("steps", []) + [
         f"Computed {len(report.metrics)} metrics from {len(nav.points)} NAV points "
         f"({report.history_years:.1f}y history)."
     ]
-    return {"metrics": report.as_dict(), "category": state.get("category") or "", "steps": steps}
+    return {
+        "metrics": report.as_dict(),
+        "qualitative": qualitative.build_qualitative(nav, report),
+        "category": state.get("category") or "",
+        "steps": steps,
+    }
 
 
 async def gather_peers(state: AgentState) -> AgentState:

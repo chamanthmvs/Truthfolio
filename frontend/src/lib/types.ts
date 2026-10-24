@@ -318,6 +318,14 @@ export interface RecommendationsResponse {
   empty_reason: string | null;
 }
 
+export interface Qualitative {
+  label: string;
+  tone: Tone;
+  age_years: number;
+  inception: string;
+  points: string[];
+}
+
 export interface ReviewResponse {
   scheme_code: string;
   scheme_name: string;
@@ -330,6 +338,7 @@ export interface ReviewResponse {
   narrative: string;
   caveats: string[];
   metrics: MetricOut[];
+  qualitative?: Qualitative;
   rolling: RollingStat[];
   peers: PeerReport;
   evidence: EvidenceItem[];

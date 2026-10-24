@@ -1,7 +1,7 @@
 "use client";
 
-import type { PersonalHolding, ReviewResponse } from "@/lib/types";
-import { formatINR, formatPct } from "@/lib/format";
+import type { PersonalHolding, Qualitative, ReviewResponse } from "@/lib/types";
+import { formatINR, formatPct, toneColor } from "@/lib/format";
 import VerdictCard from "./VerdictCard";
 import MetricCard from "./MetricCard";
 import PeerBars from "./PeerBars";
@@ -56,6 +56,7 @@ export default function FundReview({
         <a href="#review-peers">Peer comparison</a>
         {showAlternatives && <a href="#review-alternatives">Alternatives</a>}
         <a href="#review-evidence">Evidence</a>
+        <a href="#review-beyond">Beyond the numbers</a>
         <a href="#review-research">Deep research</a>
       </nav>
 
@@ -82,6 +83,10 @@ export default function FundReview({
       <Panel id="review-evidence" title="Evidence ledger — nothing is taken on faith">
         <EvidenceLedger evidence={review.evidence} />
       </Panel>
+
+      {review.qualitative?.points?.length ? (
+        <QualitativePanel q={review.qualitative} researchUsed={review.research_used} />
+      ) : null}
 
       <div id="review-research"><ResearchPanel schemeCode={review.scheme_code} /></div>
 
@@ -161,6 +166,41 @@ function Narrative({ review }: { review: ReviewResponse }) {
         </span>
       </div>
       <Markdown text={review.narrative} />
+    </section>
+  );
+}
+
+function QualitativePanel({ q, researchUsed }: { q: Qualitative; researchUsed: boolean }) {
+  return (
+    <section id="review-beyond" className="glass rounded-2xl p-5 sm:p-6">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-dim">
+          Beyond the numbers
+        </h2>
+        <span
+          className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+          style={{
+            background: `${toneColor[q.tone]}1f`,
+            color: toneColor[q.tone],
+            border: `1px solid ${toneColor[q.tone]}44`,
+          }}
+        >
+          {q.label}
+        </span>
+      </div>
+      <ul className="space-y-2.5 text-sm leading-relaxed text-ink-dim">
+        {q.points.map((p, i) => (
+          <li key={i} className="flex gap-2.5">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand/60" />
+            {p}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 border-t border-line pt-3 text-xs leading-relaxed text-ink-faint">
+        {researchUsed
+          ? "Manager, expense ratio and mandate checks — the facts numbers can't show — are in Deep Research below, with sources."
+          : "Manager, expense ratio and mandate are facts the numbers can't show. Deep Research can fetch them with sources (needs an API key)."}
+      </p>
     </section>
   );
 }

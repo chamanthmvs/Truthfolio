@@ -200,6 +200,7 @@ class ReviewResponse(BaseModel):
     narrative: str
     caveats: list[str]
     metrics: list[MetricOut]
+    qualitative: dict = {}
     rolling: list[dict]
     peers: dict
     evidence: list[dict]

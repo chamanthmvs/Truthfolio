@@ -35,6 +35,7 @@ def assemble_review(
         "narrative": state.get("narrative", ""),
         "caveats": state.get("caveats", []),
         "metrics": enrich_metrics(metrics_block),
+        "qualitative": state.get("qualitative", {}),
         "rolling": metrics_block.get("rolling", []),
         "peers": state.get("peers", {}),
         "evidence": state.get("evidence", []),
