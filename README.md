@@ -8,6 +8,8 @@
     ·
     <a href="docs/TECHNICAL.md">Technical guide</a>
     ·
+    <a href="docs/BACKEND.md">Backend handbook</a>
+    ·
     <a href="https://github.com/chamanthmvs/Truthfolio/issues">Report an issue</a>
   </p>
 </div>
@@ -188,6 +190,7 @@ frontend/
 docs/
   index.html      Static GitHub Pages project site
   TECHNICAL.md    Detailed product and engineering reference
+  BACKEND.md      Backend-only implementation handbook
   truthfolio-mark.svg
                 Shared brand symbol for the project site
 ```
@@ -211,6 +214,9 @@ These distinctions matter when interpreting a result:
 
 For full scoring formulas, privacy behavior, API payloads, caching, deployment, and extension
 guidance, see [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
+For a backend-only walkthrough of the application entry point, all 17 endpoints, request and
+SSE lifecycles, agent graph, data integrations, calculations, and module responsibilities, see
+the [backend handbook](docs/BACKEND.md).
 
 ## Deployment
 

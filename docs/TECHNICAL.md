@@ -10,6 +10,10 @@ works before changing it.
 **Product in one sentence:** Truthfolio reviews Indian mutual funds and portfolios using
 public NAV data, transparent calculations, peer comparisons, and plain-language explanations.
 
+For a focused backend-only walkthrough—including all API routes, request and SSE sequences,
+graph state, data-source behavior, and module responsibilities—see the
+[backend handbook](./BACKEND.md).
+
 ---
 
 ## Contents
@@ -122,7 +126,8 @@ qualitative fund attribute, such as manager changes or mandate drift.
 │   └── package.json                 Next.js, React, TypeScript, Tailwind, Framer Motion
 ├── docs/
 │   ├── index.html                   Static GitHub Pages product landing page
-│   └── TECHNICAL.md                 This guide
+│   ├── TECHNICAL.md                 This guide
+│   └── BACKEND.md                   Backend-only implementation handbook
 ├── dev.sh                           Starts the local API and web app together
 └── README.md                        Project overview and quick start
 ```
