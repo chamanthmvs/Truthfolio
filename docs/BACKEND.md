@@ -36,10 +36,34 @@ see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## 1. Backend in one minute
 
-Truthfolio's backend is a Python 3.11+ application built with **FastAPI**. It accepts HTTP
-requests below `/api`, validates JSON or multipart input with **Pydantic**, obtains official
-scheme identifiers and NAV history from public data sources, runs deterministic Python
-analysis, and returns JSON or a stream of Server-Sent Events.
+Truthfolio's backend is the part of the application that receives requests, does the work,
+and sends back results. It is written in Python 3.11+ and uses **FastAPI**, a toolkit for
+building web APIs.
+
+An **API** is the set of agreed ways another program can ask this service for something.
+For example, a caller can ask `GET /api/search` to find a fund or send `POST /api/review` to
+request a review. **HTTP** is the standard set of rules computers use to send those requests
+and responses over a network.
+
+Most requests and responses use **JSON**: a text format for structured data, similar to a
+clearly labelled form. The backend uses **Pydantic** to check that incoming forms contain the
+right fields and sensible values. The CAS upload uses a different format called multipart,
+which can carry a file and text fields together.
+
+The backend gets official scheme identities and NAV history from public data sources, does
+the main calculations with ordinary Python code, and returns either JSON or a stream of
+Server-Sent Events. When we say a result is **deterministic**, we mean that the same input
+data and settings produce the same calculation; the core verdict is not a model's guess.
+
+**NAV** means **Net Asset Value**. It is the published value of one unit of a mutual fund,
+like the price tag for one unit. A fund's NAV history is the sequence of those published
+values over time.
+
+An **LLM** is a **large language model**: an AI system that can write or explain text. In
+Truthfolio, it may help explain an already-calculated result or summarize cited web sources.
+It does not calculate the core fund metrics or decide the standard fund verdict.
+An LLM **provider** is the outside company/service that runs the model; this backend can be
+configured to use Anthropic or Groq.
 
 The ordinary fund and portfolio calculations do **not** require AI credentials. The regular
 fund-review result is decided by code using NAV history and peer comparisons. If an LLM is
@@ -52,7 +76,7 @@ flowchart LR
     App --> Routes["17 routes<br/>/api/*"]
     Routes --> Models["Pydantic validation"]
     Routes --> Pipeline["Agent / analysis functions"]
-    Pipeline --> Cache["Local JSON TTL cache"]
+    Pipeline --> Cache["Saved JSON copies (with expiry times)"]
     Pipeline --> AMFI["AMFI scheme master"]
     Pipeline --> NAV["mfapi.in NAV history"]
     Pipeline -. optional .-> Tavily["Tavily search"]
@@ -60,10 +84,10 @@ flowchart LR
     Routes --> Response["JSON or SSE"]
 ```
 
-An analogy: FastAPI is the front desk, Pydantic checks that the request form is filled out
-correctly, the route chooses the right team, the analysis modules do the calculations, and
-the response is the completed report. The LangGraph supervisor is a coordinator that sends
-one review through a fixed checklist of specialists.
+An analogy: FastAPI is the front desk, Pydantic checks the form, the route sends the request
+to the right team, and the analysis modules prepare the report. The LangGraph supervisor is
+like a coordinator following a fixed checklist: gather the fund's numbers, compare peers,
+calculate the verdict, and prepare an explanation.
 
 ### What is not in this backend
 
@@ -80,38 +104,86 @@ one review through a fixed checklist of specialists.
 
 ### The executable entry point
 
-The ASGI application object is `app` in `backend/app/main.py`. It is normally launched with:
+The application entry point is the object named `app` in
+`backend/app/main.py`. It is normally launched with:
 
 ```bash
 cd backend
 .venv/bin/uvicorn app.main:app --reload --port 8077
 ```
 
-`app.main:app` means: import the Python module `app.main`, then serve the object named `app`.
-In production, the Docker image runs the same module with Uvicorn and listens on the host's
-`PORT` (default `8077`).
+The command's `app.main:app` means: open the Python file `app/main.py`, then use the object
+inside it that is named `app`.
 
-### What `create_app()` wires together
+**Uvicorn** is the web-server program that listens for network traffic and hands each request
+to FastAPI. **ASGI** is the standard connection between Uvicorn and an asynchronous Python
+web application. You can think of ASGI as a plug shape: Uvicorn and FastAPI can work together
+because both use the same agreed connection. In production, the Docker image starts Uvicorn
+the same way and listens on the port supplied by the host (`PORT`, default `8077`).
 
-1. `get_settings()` loads environment-backed settings and creates the configured cache folder.
-2. `FastAPI(...)` creates the application, sets its API title and version, and registers the
-   lifespan handler.
-3. `CORSMiddleware` allows browser requests from the configured origins. The default is the
-   local frontend at `localhost:3000` and `127.0.0.1:3000`. Credentials are allowed, and
-   methods and headers are configured as wildcards.
-4. `include_router(router, prefix="/api")` mounts every route from `app/api/routes.py` under
-   `/api`.
-5. The module creates the ASGI instance once: `app = create_app()`.
+### What `create_app()` connects
 
-The router is the route registry; it does not itself run analysis. Each endpoint validates
-input, calls a focused function/module, and shapes the return value.
+1. `get_settings()` reads configuration such as allowed website addresses and cache location.
+   It also creates the cache folder if needed.
+2. `FastAPI(...)` creates the application and gives it a name and version.
+3. FastAPI is given a startup/shutdown function. In web frameworks, this is often called the
+   **lifespan**: the work to do as the service starts and stops.
+4. The app installs CORS rules for browser requests.
+5. `include_router(router, prefix="/api")` adds the URL handlers from
+   `app/api/routes.py`. A **route** (also called an endpoint) is one supported method and
+   address, for example `GET /api/search`.
+6. `app = create_app()` creates the one application object that Uvicorn serves.
+
+#### CORS, explained without assuming you know the term
+
+**CORS** stands for **Cross-Origin Resource Sharing**. A browser treats two web addresses as
+different origins if their protocol, host name, or port differs. For example,
+`http://localhost:3000` and `http://localhost:8077` are different origins because the ports
+differ.
+
+For safety, browsers normally stop a page from reading a response from a different origin
+unless the server says that page is allowed. Truthfolio adds **CORS middleware** to attach
+special instructions to responses. Those instructions tell the browser which website
+addresses, request actions, and extra request details are allowed. The browser—not this
+middleware—uses those instructions to decide whether the page may read the response.
+Middleware is helper code that runs around a request or response, like a checkpoint that
+checks the rules before a visitor can continue.
+
+The backend currently allows the local website addresses `http://localhost:3000` and
+`http://127.0.0.1:3000` by default. In production, `HPR_CORS_ORIGINS` should contain the
+actual website address or addresses that need to call this API.
+
+The code also allows **credentials** and uses `["*"]` for methods and headers:
+
+- A method is the kind of action in an HTTP request, such as `GET` (read) or `POST` (send
+  data). `["*"]` means the browser may use any method, provided the website's origin is
+  allowed.
+- A header is extra request information, such as the content type. `["*"]` means the browser
+  may send any headers.
+- Credentials means browser requests may include credential information such as cookies.
+  This backend currently has no login or user authentication, so allowing credentials does
+  **not** mean the app has user accounts.
+
+For some requests, the browser first sends a small `OPTIONS` check asking whether the
+planned request is allowed. If the check passes, the browser sends the actual request.
+
+CORS is a browser rule, **not** a login system, an API key check, or a firewall. It does not
+stop command-line programs or other servers from calling the API. It only tells browsers
+which website origins may read responses.
+
+The router is just the list of supported method/address pairs; it does not do the analysis
+itself. Each route checks its input, calls the relevant function, and prepares the response.
 
 ### Startup lifespan
 
-FastAPI's lifespan calls `amfi.get_master()` before serving requests. This warms the in-memory
-scheme index so the first search is usually faster. If the upstream request or parsing fails
-during this warm-up, startup continues; a later endpoint will attempt to load the master
-again. That startup fallback is explicit in `main.py`.
+At startup, the lifespan function calls `amfi.get_master()` before serving requests. This
+loads the fund directory into memory so the first search is usually faster. This early load
+is sometimes called **warming the cache**—like putting frequently used reference books on a
+desk before work begins.
+
+If downloading or reading the directory fails during startup, the app still starts. A later
+request that needs the directory will try again. This means the health endpoint can respond
+even while the first real fund request may still fail if AMFI remains unavailable.
 
 The application does not load NAV data for every fund at startup. NAV data is fetched only
 when an endpoint needs that scheme's history.
@@ -120,19 +192,31 @@ when an endpoint needs that scheme's history.
 
 ## 3. The request lifecycle
 
-For a typical JSON request:
+Here is what happens when a caller asks the backend to review a fund:
 
-1. **HTTP arrives** at Uvicorn, which serves the FastAPI application.
-2. **Routing** matches method and path, such as `POST /api/review`.
-3. **Parsing and validation** happen. Pydantic checks the request body, query parameters,
-   numeric ranges, and list limits before endpoint code runs.
-4. **Route logic** resolves any AMFI scheme code and calls the relevant analysis, agent, or
-   data module.
-5. **External reads** are made only if required and not available from cache. The data layer
-   normalizes upstream responses before analysis uses them.
-6. **Response shaping** produces the endpoint's JSON model/dictionary or SSE event frames.
-7. **HTTP response** returns to the caller. Errors use HTTP status codes, except SSE workflows
-   that have already started streaming and report some failures as named events.
+1. Uvicorn receives the network message and passes it to FastAPI.
+2. FastAPI checks the request's method and address. For example, `POST /api/review` means
+   "send data to the review route."
+3. FastAPI and Pydantic read the incoming data and check that required fields are present and
+   values are within allowed ranges. If a required field is missing, the review does not run.
+4. The matching route looks up the submitted scheme code in the AMFI directory. A valid code
+   is like a library call number: it lets the backend find the exact scheme without guessing
+   from a name.
+5. The route calls the code that performs the requested work. For a fund review, that means
+   running the review steps; for health, it simply returns the health response.
+6. If the work needs information from outside the app, the data module first checks its
+   cache. If there is no fresh copy, it requests the information from AMFI, mfapi.in, Tavily,
+   or an LLM provider, depending on the feature.
+7. The route turns the result into the promised response shape and sends it back. A quick
+   result is usually JSON; a longer review can send progress events as it works.
+
+An **HTTP status code** is a short number that tells the caller how the request went.
+For example, 200 means success, 404 means the requested scheme was not found, 422 means the
+submitted data did not pass validation, 429 means a usage limit was reached, 502 means an
+outside service failed, 503 means a needed feature is unavailable, and 500 means an
+unexpected backend failure. These numbers describe the HTTP request itself. Once an SSE
+stream is already open, some later errors are sent as `error` messages inside the stream
+instead of changing the status code.
 
 ```mermaid
 sequenceDiagram
@@ -149,45 +233,50 @@ sequenceDiagram
     U->>F: ASGI request
     F->>R: Match method and /api path
     R->>P: Parse and validate inputs
-    P-->>R: Valid typed input (or HTTP 422)
+    P-->>R: Checked input (or HTTP 422)
     R->>S: Call focused backend function
-    S->>D: Read cache; fetch upstream only on miss
-    D-->>S: Normalized data
+    S->>D: Look for a saved copy; fetch from an outside service only if needed
+    D-->>S: Cleaned data in a predictable shape
     S-->>R: Analysis result
     R-->>F: Response object / event stream
     F-->>U: HTTP response
     U-->>C: JSON or text/event-stream
 ```
 
-This is not one universal path. `/health` does not call AMFI; `/market-pulse` does not use the
-fund-review supervisor; `/portfolio/import` parses a PDF; and `/review/stream` returns a live
-stream. The endpoint table below says which path each request takes.
+This is not one universal path. `/health` does not contact AMFI. `/market-pulse` follows its
+own search-and-summary path instead of the fund-review checklist. `/portfolio/import` reads a
+PDF. `/review/stream` sends progress while a review is running. The endpoint table below
+shows what each address does.
 
 ---
 
 ## 4. All HTTP endpoints
 
-All 17 routes are mounted under `/api`. For example, the health path is
-`GET /api/health`. FastAPI also generates interactive docs at `/docs` and `/redoc` (outside
-the `/api` prefix).
+All 17 routes are mounted under `/api`. A **route** or **endpoint** is one address plus one
+kind of action. For example, `GET /api/health` asks to read the health status; `POST
+/api/review` sends review data for the server to process. `GET` and `POST` are HTTP methods:
+`GET` usually reads information, and `POST` usually sends information or starts work.
+
+FastAPI also builds interactive API reference pages at `/docs` and `/redoc`; these pages are
+outside the `/api` prefix.
 
 | # | Method and path | Input | What happens / response |
 |---:|---|---|---|
-| 1 | `GET /api/health` | None | Liveness response: `{"status":"ok"}`. It does not check upstream services. |
+| 1 | `GET /api/health` | None | Says whether this backend process is responding: `{"status":"ok"}`. It does not check outside data services. |
 | 2 | `GET /api/capabilities` | None | Reports whether chat, research, Market Pulse, and AI insights are enabled by current keys. |
 | 3 | `GET /api/search` | `q` query (at least 2 chars); `limit` 1-30, default 12 | Loads AMFI master and returns matching official schemes. |
 | 4 | `POST /api/review` | `ReviewRequest` JSON | Runs the standard fund review and returns the final review JSON. |
 | 5 | `GET /api/review/stream` | `scheme_code` query | Runs a fund review and streams `step`, then `result`; unknown code emits `error`. |
 | 6 | `GET /api/research` | `scheme_code` query | Explicitly runs cited web research, or returns an enabled/disabled result and search budget. |
 | 7 | `GET /api/recommendations` | `scheme_code` query | Scans same-category alternatives and returns qualifying research leads. |
-| 8 | `POST /api/fund/chat` | `FundChatRequest` JSON | Sends supplied one-fund context and bounded conversation to configured LLM. |
+| 8 | `POST /api/fund/chat` | `FundChatRequest` JSON | Sends the supplied one-fund details and size-limited conversation to the configured AI service. |
 | 9 | `GET /api/insights` | `scheme_code` query | Runs fund analysis without narrative, then produces insight cards. |
 | 10 | `GET /api/fund/history` | `scheme_code` query | Returns monthly rebased fund NAV history and statistics, or `available:false`. |
 | 11 | `GET /api/market-chart` | None | Returns public index-fund proxy histories and a factual, numbers-only market read. |
 | 12 | `GET /api/market-pulse` | Optional `focus` query | Runs cited, current web synthesis, or explicitly reports unavailable. |
 | 13 | `POST /api/insights/portfolio` | JSON `summary`, optional `holdings` | Produces portfolio insight cards from the submitted analysis. |
-| 14 | `POST /api/portfolio/chat` | `PortfolioChatRequest` JSON | Sends supplied portfolio context and conversation to configured LLM. |
-| 15 | `POST /api/portfolio/import` | Multipart `file`, optional `password` | Parses a CAMS/KFintech CAS and returns matched active holdings. |
+| 14 | `POST /api/portfolio/chat` | `PortfolioChatRequest` JSON | Sends the supplied portfolio details and size-limited conversation to the configured AI service. |
+| 15 | `POST /api/portfolio/import` | A file upload plus optional password | Reads a CAS statement and returns matched active holdings. |
 | 16 | `POST /api/portfolio` | `PortfolioRequest` JSON | Analyzes all submitted holdings and returns summary JSON. |
 | 17 | `POST /api/portfolio/stream` | `PortfolioRequest` JSON | Streams a start event, each holding completion, then final portfolio result. |
 
@@ -206,10 +295,12 @@ the `/api` prefix).
 
 ## 5. Request and response contracts
 
-Pydantic definitions live in `backend/app/models/schemas.py`. FastAPI converts a validation
-failure into HTTP 422 with a structured error response. The endpoint may add business checks
-after model validation, such as confirming that a syntactically valid scheme code exists in
-AMFI's master.
+Pydantic definitions live in `backend/app/models/schemas.py`. A **model** here is a written
+description of which fields a request or response should contain. Pydantic uses that
+description as a form checker: it checks the data's shape and limits before analysis starts.
+If the form is invalid, FastAPI returns HTTP 422 with details of the problem. Some checks need
+real-world data and happen later—for example, the scheme code can have the right text format
+but still not exist in AMFI's directory.
 
 ### Search
 
@@ -230,8 +321,8 @@ AMFI's master.
 }
 ```
 
-The example code is a placeholder, not a valid scheme assertion. The API result schema is
-`SearchResponse` containing `SchemeHit` objects.
+The example code is a placeholder, not a real fund scheme code. The response shape is
+described by `SearchResponse`, which contains a list of `SchemeHit` results.
 
 ### Standard fund review
 
@@ -245,22 +336,22 @@ The `ReviewResponse` contains:
 
 | Field | Meaning |
 |---|---|
-| `scheme_code`, `scheme_name`, `category` | Official scheme identity and normalized category. |
+| `scheme_code`, `scheme_name`, `category` | Official scheme identity and simplified category label. |
 | `as_of` | Date of the last NAV used in the computed metrics. |
-| `verdict`, `health_score`, `confidence` | Rule-based result; confidence is a heuristic indicator, not a guarantee. |
-| `headline`, `narrative`, `caveats` | Short summary, optional LLM-written explanation or deterministic fallback, and fixed educational limits. |
+| `verdict`, `health_score`, `confidence` | Result from fixed rules; confidence is a rough indicator, not a guarantee. |
+| `headline`, `narrative`, `caveats` | Short summary, an explanation written by the LLM or by a simple backup template, and fixed educational limits. |
 | `metrics` | Values plus units, better direction, plain explanation and interpretation. |
 | `qualitative` | Deterministic track-record and resilience facts derived from NAV history. |
 | `rolling` | Historical rolling-return distributions when sufficient history exists. |
 | `peers` | Category, sample sizes, and direction-aware peer ranks. |
-| `evidence` | Claims, direction, weight, confidence, and source references. |
+| `evidence` | Statements that support the result, whether each is positive/negative/neutral, how much weight it gets, and the sources behind it. |
 | `footnotes` | Numbered research citations; normally empty for standard review. |
-| `steps` | Pipeline progress messages, also used by the streaming endpoint. |
+| `steps` | Progress messages from the ordered review steps, also used by the streaming endpoint. |
 | `llm_used`, `research_used` | Identify optional work used by this result. |
 
-`analysis/review_view.py` is the shared serializer. It enriches metric rows using the
-explainer catalog, then assembles the same shape for a standalone review and a portfolio
-holding's embedded review.
+`analysis/review_view.py` is the shared response builder. It adds plain-language explanations
+to metric rows, then turns the internal results into the same JSON shape for a standalone
+review and for a fund inside a portfolio.
 
 ### Portfolio analysis
 
@@ -291,10 +382,10 @@ failures do not fail the whole request when at least one holding succeeds.
 contains a `PortfolioChatSummary`, 1-40 `PortfolioChatHolding` entries, and `messages`.
 Messages must alternate `user`, `assistant`, start with a user question, and end with a user
 question. Each request is capped at nine messages (five user questions), 600 characters per
-user message, 2,000 characters per assistant message, and 50 KB of serialized context. Blank
-messages are rejected.
+user message, 2,000 characters per assistant message, and 50 KB after the whole request is
+converted to JSON text. Blank messages are rejected.
 
-The context models cap fields and arrays to keep prompts bounded. Percentage fields that are
+The context models cap field lengths and list sizes so the AI request stays small. Percentage fields that are
 sent to chat are described as percentage points (for example `12.5` means 12.5%), and money
 is INR. Responses use `FundChatResponse` or `PortfolioChatResponse`, each containing a
 non-empty `answer` of at most 2,000 characters.
@@ -312,21 +403,21 @@ stated bounds before the route handles the request.
 | `MetricOut` | Metric key, label, optional numeric value, unit, good direction, optional plain explanation fields, and optional interpretation dictionary. |
 | `HoldingInput` | `scheme_code`; `units > 0`; `avg_nav > 0`. |
 | `PortfolioRequest` | `holdings` list of 1-40 `HoldingInput` values. |
-| `PortfolioChatMetric` | `label` length 1-80; optional finite `value`; `unit` length at most 20 (default empty). |
-| `PortfolioChatHolding` | Scheme name length 1-240; category <=120; verdict <=40; finite score 0-100; finite weight 0-100; invested/current value >=0; finite gain/return; headline <=500; up to 12 metrics and 8 evidence strings (each <=400); peer summary <=500. |
-| `PortfolioChatCategory` | Category length 1-120; finite percentage from 0 to 100. |
-| `PortfolioChatSummary` | Finite non-negative invested/current totals; finite gain and return; health 0-100; verdict <=60; diversification <=500; top holding and category percentages 0-100; top category <=120; category mix up to 20; headline <=500; action items and caveats up to 10 each, each string <=500. |
+| `PortfolioChatMetric` | `label` length 1-80; optional ordinary number for `value`; `unit` length at most 20 (default empty). |
+| `PortfolioChatHolding` | Scheme name length 1-240; category <=120; verdict <=40; health score from 0-100; weight from 0-100; invested/current value >=0; gain and return must be ordinary numbers; headline <=500; up to 12 metrics and 8 evidence strings (each <=400); peer summary <=500. |
+| `PortfolioChatCategory` | Category length 1-120; percentage from 0 to 100. |
+| `PortfolioChatSummary` | Non-negative invested/current totals; gain and return must be ordinary numbers; health 0-100; verdict <=60; diversification text <=500; top holding and category percentages 0-100; top category <=120; category mix up to 20; headline <=500; action items and caveats up to 10 each, each string <=500. |
 | `PortfolioChatMessage` | Role is exactly `user` or `assistant`; content length 1-2,000, then whitespace-trimmed. The request validator applies the stricter user-question limit of 600. |
-| `PortfolioChatRequest` | One summary, 1-40 holdings, and 1-9 messages; enforces <=50 KB serialized size, alternating roles, first and final message from user, and at most five questions. |
-| `FundChatContext` | Fund name length 1-240; optional bounded category/date/headline/peer text; score and confidence 0-100; up to 14 metrics, 4 rolling-return strings, 10 evidence strings, and 6 caveat strings, each with per-field length limits. |
-| `FundChatRequest` | One fund context and 1-9 messages; applies the same serialized-size, alternation, question-count, and final-user-message checks as portfolio chat. |
+| `PortfolioChatRequest` | One summary, 1-40 holdings, and 1-9 messages; the request must be no larger than 50 KB after conversion to JSON text, messages must alternate roles, first and final message must be from the user, and there can be at most five questions. |
+| `FundChatContext` | Fund name length 1-240; optional category/date/headline/peer text with length limits; score and confidence 0-100; up to 14 metrics, 4 rolling-return strings, 10 evidence strings, and 6 caveat strings, each with length limits. |
+| `FundChatRequest` | One fund context and 1-9 messages; applies the same 50 KB JSON size, alternating messages, question-count, and final-user-message checks as portfolio chat. |
 | `FundChatResponse`, `PortfolioChatResponse` | Non-empty answer, maximum 2,000 characters. |
 | `ReviewResponse` | Typed final fund-review fields listed above; metrics are `MetricOut` records. |
 
-The portfolio chat model also rejects NaN and infinity on numeric fields where
-`allow_inf_nan=False` is specified. Holdings submitted to `/portfolio` differ from holdings
+On some numeric fields, the chat models reject special values such as `NaN` ("not a number")
+or infinity; they only accept ordinary numbers. Holdings submitted to `/portfolio` differ from holdings
 submitted to chat: portfolio analysis needs scheme code, units, and average NAV; chat only
-receives already-computed, bounded analysis.
+receives a limited-size summary of analysis that has already been calculated.
 
 ### CAS upload
 
@@ -357,13 +448,18 @@ statement date, and freshness warning information.
 
 ### What SSE means
 
-Server-Sent Events is a simple way for a server to keep one HTTP response open and send small
-named messages as work progresses. It is like receiving numbered progress updates while a
-long report is being prepared, instead of waiting silently for the complete report. The
-connection is one-way: the server sends events; the client does not send new commands through
-that same stream.
+**Server-Sent Events**, usually shortened to **SSE**, is a way for the server to send several
+small messages through one request while it is still working. Imagine ordering a long report
+and getting updates such as "numbers calculated" and "peer comparison finished" before the
+complete report arrives. Without SSE, the caller would wait silently and receive only the
+finished report.
 
-An SSE response uses media type `text/event-stream`. Each event frame has this form:
+SSE uses one open HTTP connection and sends messages in one direction: from server to caller.
+The caller cannot send a new instruction through that same stream. The server labels each
+message with an event name and puts the message contents on a `data:` line. The technical
+content type sent in the response is `text/event-stream`.
+
+One message looks like this:
 
 ```text
 event: event-name
@@ -371,8 +467,8 @@ data: {"some":"JSON data"}
 
 ```
 
-The blank line ends the event. The backend helper `_sse()` serializes the data with
-`json.dumps(..., default=str)`.
+The blank line marks the end of that message. The next message follows the same pattern.
+`_sse()` builds these frames and converts the data to JSON text with `json.dumps()`.
 
 SSE is used by two endpoints:
 
@@ -412,7 +508,8 @@ sequenceDiagram
 ```
 
 The route emits only newly added `steps`, so already-sent progress text is not repeated. The
-final event uses the same `assemble_review()` serializer as the synchronous review. If the
+final event uses the same `assemble_review()` response-building function as the ordinary
+review. If the
 graph raises after the stream starts, the route emits `event: error` with a message. A failure
 while obtaining the AMFI master occurs before that graph exception handler and can instead
 terminate the stream as a server error.
@@ -431,7 +528,7 @@ sequenceDiagram
 
     Caller->>Route: PortfolioRequest (1-40 holdings)
     Route-->>Caller: event: start {total}
-    par Holdings run concurrently
+    par Holding reviews run at the same time
         Route->>H1: analyze_holding(A)
         H1->>NAV: Review and peer histories as needed
         NAV-->>H1: NAV series
@@ -476,9 +573,9 @@ calculate a result, and explain it. `supervisor.py` records those as an ordered 
 specialist does one job and returns to the supervisor. This is easier to inspect and stream
 than one large function with mixed responsibilities.
 
-Despite the word "agent", **the routing is not chosen by an LLM**. It is a deterministic
-ordered plan. The graph coordinates Python functions; only selected specialist work invokes
-an LLM.
+Despite the word "agent", **the route through the steps is not chosen by an LLM**. The steps
+are written down in a fixed order in Python. The graph only coordinates those functions;
+only selected work, such as writing a narrative, calls an LLM.
 
 ### Standard review sequence
 
@@ -507,7 +604,7 @@ sequenceDiagram
     Quant-->>Supervisor: metrics, qualitative facts, step
     Supervisor->>Peers: Run next planned node
     Peers->>Master: Select same-category Direct-Growth peers
-    Peers->>NAV: Fetch bounded peer NAV histories
+    Peers->>NAV: Fetch histories for the selected peer sample
     NAV-->>Peers: Peer NAV series
     Peers-->>Supervisor: Peer ranks and step
     Supervisor->>Evidence: Build computed evidence ledger
@@ -519,7 +616,7 @@ sequenceDiagram
         Narrative->>LLM: Metrics, ranks, evidence, fixed verdict
         LLM-->>Narrative: Narrative JSON
     end
-    Narrative-->>Supervisor: Narrative or template fallback
+    Narrative-->>Supervisor: Narrative or simple template backup
     Supervisor-->>API: Final AgentState
     API->>API: assemble_review(...)
     API-->>API: Typed ReviewResponse
@@ -527,14 +624,21 @@ sequenceDiagram
 
 ### The shared graph state
 
-`AgentState` in `agent/state.py` is a `TypedDict`, a dictionary with documented field types.
-LangGraph passes partial dictionaries between nodes and merges their updates. The state is
-plain-data oriented so its outputs can be serialized into the API response.
+`AgentState` in `agent/state.py` is a typed Python dictionary: a set of named slots with
+documented kinds of values. Think of it as a shared clipboard for the review. Each step reads
+what earlier steps wrote and adds its own results. LangGraph combines those updates and
+hands the updated clipboard to the next step. It stores simple data so the final answer can
+be turned into JSON.
+
+**LangGraph** is the Python library that provides this checklist-and-clipboard structure.
+Each specialist is called a **node**: one stop in the checklist, implemented as a Python
+function. The node name describes its job, such as `gather_quant` for collecting and
+calculating the fund's numbers.
 
 | State area | Examples | Why it exists |
 |---|---|---|
 | Inputs | scheme code/name, base name, AMC, category, optional units and invested amount | Carries the selected fund and any task context into nodes. |
-| Gathered data | `metrics`, `qualitative`, `peers` | Stores normalized results from deterministic analysis. |
+| Gathered data | `metrics`, `qualitative`, `peers` | Stores cleaned-up results in a predictable shape, ready for later calculations. |
 | Evidence/research | `evidence`, `research_evidence`, `footnotes`, `research_used` | Carries claims and traceable sources separately from raw metrics. |
 | Outputs | health score, verdict, confidence, headline, narrative, caveats | Stores review result and explanation. |
 | Supervisor control | `task`, remaining `plan`, `_next` | Selects the next specialist by fixed plan. |
@@ -556,9 +660,10 @@ gate.
 | `research_only` | `gather_research` | `/research`. |
 | `fund_insights` | Quant -> peers -> evidence -> synthesize -> generate insights | `/insights`. |
 
-Each registered specialist maps to a Python function in `agent/nodes.py`. Every specialist
-has an edge back to `supervisor`; the supervisor picks the next item or ends the graph. The
-compiled graph is cached with `lru_cache` so it is built once per process.
+Each named specialist is a Python function in `agent/nodes.py`. In the graph, an **edge**
+means "after this step, go here." Every specialist sends control back to the supervisor, which
+chooses the next item from the written plan or stops when the list is empty. The finished
+graph is kept in memory and reused by the process instead of being rebuilt for every request.
 
 ### What each standard node does
 
@@ -588,24 +693,28 @@ Continue/Stop/Shift result.
 
 ### AMFI: the scheme directory
 
-`data/amfi.py` downloads the AMFI `NAVAll.txt` feed. It is the source of real scheme codes and
-scheme names; it is not the historical NAV service.
+`data/amfi.py` downloads the AMFI `NAVAll.txt` feed. AMFI is the Association of Mutual Funds
+in India. This feed is the directory of official scheme codes and names; it is not where the
+backend gets a scheme's full historical NAV record.
 
 The parser handles semicolon-delimited records and delimiter-less section headers. It builds:
 
-- `Scheme`: one scheme's code, full name, base name, AMC, scheme type/category, plan/option,
-  and optional ISINs.
+- `Scheme`: one scheme's code, full name, base name, fund house (AMC), scheme type/category,
+  plan/option, and optional ISINs. An ISIN is another standardized identifier for a financial
+  product, useful when a statement does not contain the AMFI code.
 - `SchemeMaster`: the list plus lookup indexes by code and ISIN, and a fuzzy-search corpus.
 
-`SchemeMaster.search()` uses RapidFuzz's token-set matching, removes generic words such as
-"fund" and "growth" from a distinctive-word gate, collapses plan/option duplicates, and
-prefers Direct-Growth where possible. This makes the search result a validated identity, not
-an arbitrary free-text name.
+`SchemeMaster.search()` uses RapidFuzz, a library that compares words even when they are
+typed in a different order. It ignores generic words such as "fund" and "growth" when
+checking whether a search is distinctive, combines duplicate plan/option versions of the same
+fund into one result, and prefers Direct-Growth when available. For example, a search for
+"flexi parag" can still find a scheme whose official name says "Parag Parikh Flexi Cap Fund."
+The result is an official scheme identity, not a free-text name invented by the caller.
 
-`get_master()` checks process memory first, then the JSON cache, then AMFI. An `asyncio.Lock`
-prevents simultaneous cache misses in the same process from downloading/parsing the master
-multiple times. The in-memory indexed copy is reused until the process restarts; disk TTL is
-24 hours by default.
+`get_master()` checks this running program's temporary memory first, then the saved JSON copy,
+then AMFI. An `asyncio.Lock` makes sure two requests that arrive together do not both download
+and prepare the same directory. The prepared copy stays in temporary memory until the program
+restarts; the saved disk copy is considered fresh for 24 hours by default.
 
 ### mfapi.in: historical NAV
 
@@ -617,15 +726,17 @@ multiple times. The in-memory indexed copy is reused until the process restarts;
   `end`, and `latest_nav` properties.
 
 Bad date/value rows and non-positive NAVs are skipped. No remaining points raises `ValueError`.
-Raw API JSON is cached for 12 hours by default. Network fetches use the configured HTTP
-timeout, retry up to three times with exponential backoff, and pass through an
-`asyncio.Semaphore(16)` to bound simultaneous requests. The semaphore is process-wide, so
-portfolio and peer fan-out share that ceiling.
+Raw API JSON is kept in the cache for 12 hours by default. Network fetches have a time limit
+and retry up to three times, waiting a little longer between attempts. A semaphore is a
+traffic light for concurrent work: the `asyncio.Semaphore(16)` lets at most 16 NAV downloads
+run at once. It is shared by portfolio and peer work in this process, preventing a large
+portfolio from opening an uncontrolled number of simultaneous connections.
 
 ### Tavily: optional web search
 
-`data/websearch.py` calls Tavily's REST search endpoint directly with `httpx`; it is not part
-of the standard fund-review path. Results are normalized to `WebResult` records and cached by
+`data/websearch.py` calls Tavily's search service over HTTP using the `httpx` library; it is
+not part of the standard fund-review path. Search responses are cleaned into the same
+`WebResult` record shape and cached by
 the query, topic, days, and result count. Cache hits do not consume the daily search counter.
 The counter allows at most the configured number of real requests per process/day.
 
@@ -636,14 +747,16 @@ a successful HTTP response and JSON parse; a failed Tavily call does not increme
 
 ### The file cache
 
-`data/cache.py` stores JSON files in `HPR_CACHE_DIR` (default `backend/.cache`). Each entry
-contains a timestamp and data. A read returns no value if the file is absent, has invalid JSON,
-is unreadable, or is expired. A write is best-effort; a disk write error does not fail the
-request.
+`data/cache.py` stores JSON files in `HPR_CACHE_DIR` (default `backend/.cache`). Each saved
+entry contains the data and the time it was saved. Each caller chooses a **time to live**
+(**TTL**): how long that saved copy may be reused before it is considered old. A read returns
+"no saved copy" if the file is missing, unreadable, incorrectly formatted, or past its TTL.
+Saving is best-effort: if writing the cache fails, the request can still continue.
 
-This is a performance/cost cache, **not** a database:
+This is a performance/cost cache, **not** a database. A cache is a saved copy used to avoid
+repeating work; it is not the permanent record of a user's portfolio:
 
-- It is local to one instance and is not shared across replicas.
+- It is local to one running backend copy and is not shared with other copies of the service.
 - It has no user data model or query layer.
 - It may be cleared without losing a saved portfolio because portfolios are not persisted.
 - Separate features choose their own key and TTL (for example NAV 12 hours, fund history and
@@ -654,24 +767,34 @@ This is a performance/cost cache, **not** a database:
 
 ## 9. Metrics, peer comparison, and verdict
 
-### NAV normalization before calculation
+### Preparing NAV data for calculation
 
-`analysis/metrics.py` converts points into a date-indexed Pandas series, drops duplicate dates
-(keeping the last point for a date), sorts chronologically, and calculates returns from NAV
-changes. NumPy and Pandas are used for the numerical work; the functions are deterministic
-given the same NAV points and risk-free-rate setting.
+`analysis/metrics.py` puts each NAV beside its date, drops duplicate dates (keeping the last
+point for a date), sorts from oldest to newest, and calculates returns from NAV changes.
+Pandas helps organize the dated values; NumPy helps with the number-crunching. These are
+calculation tools: they do not choose the review rules. The results stay the same when the
+NAV values and risk-free reference rate are the same.
 
-| Output | How the backend calculates it |
+In plain language: it lines up each NAV with its date, removes duplicate dates, puts the
+oldest values first, and then compares each value with earlier values. This cleanup step
+means later calculations all receive data in the same order and shape.
+
+| Output | What it tells you and how it is calculated |
 |---|---|
-| 1-, 3-, 5-year return | Finds the last NAV on or before the target date. For a year-or-longer window, calculates CAGR: `(end / start) ** (1 / years) - 1`. |
-| Return under one year | Uses simple total return, not annualized. |
-| Since-inception CAGR | Uses first NAV, last NAV, and elapsed calendar years. |
-| Daily returns | `NAV[t] / NAV[t-1] - 1`. |
-| Annualized volatility | Sample standard deviation of daily returns (`ddof=1`) multiplied by `sqrt(252)`. |
-| Sharpe | Annualized arithmetic mean daily return minus configured annual risk-free rate, divided by annualized volatility. |
-| Sortino | Same excess-return numerator divided by annualized sample standard deviation of negative daily returns. It can be absent if there are too few downside observations. |
-| Maximum drawdown | Minimum of `NAV / running_peak - 1`; it is zero or negative. |
-| Rolling returns | Monthly-stepped 3- and 5-year CAGR windows; reports observations, min/median/max, and share below zero when there are at least three windows. |
+| 1-, 3-, 5-year return | How quickly the fund grew over that period. For a period of a year or more, the backend finds the NAV near the start and end, then calculates CAGR: `(end / start) ** (1 / years) - 1`. CAGR means the smoothed yearly growth rate that would connect those two values. |
+| Return under one year | The total change from start to finish. It is not converted into a yearly rate because a short period can be misleading. |
+| Since-inception CAGR | The smoothed yearly growth rate from the first available NAV to the latest NAV. |
+| Daily returns | The percentage change from one published NAV to the next: `today's NAV / previous NAV - 1`. |
+| Annualized volatility | How much daily returns tend to jump around, scaled to a year. The calculation uses sample standard deviation (a common way to measure how spread out values are) multiplied by `sqrt(252)`, treating 252 as the approximate number of market days in a year. |
+| Sharpe ratio | Roughly, extra return for each unit of overall up-and-down movement: annualized average return minus the configured low-risk reference rate, divided by annualized volatility. |
+| Sortino ratio | Similar to Sharpe, but counts only downward daily movements as the risk. It may be unavailable when there are too few negative-return days. |
+| Maximum drawdown | The largest historical fall from a previous high: `NAV / highest NAV so far - 1`. It is zero or negative; for example, `-0.30` means the NAV fell 30% from a prior peak at its worst point. |
+| Rolling returns | Repeats the 3- and 5-year return calculation at monthly start dates. This shows a range of possible historical start dates instead of relying on one chosen start date. The report gives the lowest, middle (median), and highest results, plus the share of periods that ended below zero. |
+
+For example, if a fund's NAV goes from 100 to 121 over two years, its CAGR is about 10% per
+year: growing 100 by 10% twice gives roughly 121. That smoothed yearly rate is useful for
+comparing periods of different lengths, but it does not mean the fund earned exactly 10% in
+each individual year.
 
 Metrics with insufficient observations may have a `null` value; rolling windows with too
 little history are omitted. `MetricsReport` groups scheme code, dates, history length, latest
@@ -686,41 +809,52 @@ AMFI-derived category.
 
 The ranking peer set:
 
-- includes Direct-Growth schemes,
+- includes Direct-Growth schemes (bought directly from the fund company, with gains kept
+  invested rather than paid out),
 - excludes the subject,
 - sorts by fund house and name,
 - includes no more than two schemes from one AMC, and
 - selects at most 18 peers.
 
-Peer NAV fetches run concurrently through the same bounded NAV client. A peer that cannot
-load is dropped. The report separately records the eligible category-universe size and how
-many peers actually produced metrics. Percentiles include the subject alongside the available
-peer values; a direction-aware comparison makes a higher return/ratio better, lower
-volatility better, and a less-negative drawdown better.
+Peer NAV fetches can run at the same time through the same limited NAV client. A peer that cannot
+load is dropped. The report shows both how many schemes could have been considered and how
+many actually produced usable numbers.
+
+A **percentile** answers "how many of these funds did this one do at least as well as?" For
+example, a 0.80 percentile means it did as well as or better than about 80% of the compared
+group on that measure. The code includes the subject fund in the comparison and respects
+which direction is better: higher return/ratio, lower volatility, and a drawdown closer to
+zero.
 
 Recommendations are a separate operation: they can scan up to 120 same-category
-Direct-Growth candidates, deduplicated by base fund name. They are not limited to the 18
-ranking sample. A candidate must score at least three points above the subject on
-self-health (with peer standing removed) and win at least three available displayed
+Direct-Growth candidates, deduplicated by base fund name. "Direct" means the plan is bought
+from the fund company rather than through a distributor; "Growth" means gains remain invested
+in the fund rather than being paid out as income. Recommendations are not limited to the 18
+fund ranking sample. A candidate must score at least three points above the subject on its
+own health score (calculated without the peer-comparison part) and win at least three available displayed
 comparisons. Those comparisons are 3-year return, 5-year return, Sharpe, Sortino, maximum
 drawdown, and rolling-return consistency; unavailable values are skipped. These outputs are
 research leads, not personalized fund recommendations.
 
 ### The health score
 
-`agent/verdict.py` applies five weighted components. The configured weights sum to 1.0, but
-missing components are excluded and the remaining weights are renormalized.
+`agent/verdict.py` applies five weighted components. Each component has an importance share
+(its weight). The shares add to 1.0 when all five are available. If a fund lacks enough
+history for one component, that component is left out and the remaining shares are scaled up
+to add to 1.0 again; in other words, the remaining weights are rescaled to total 1.0.
 
-| Component | Weight | Score rule |
+| Component | Importance | How its 0-100 sub-score is made |
 |---|---:|---|
-| Long-term return | 0.22 | Use 5-year CAGR, otherwise 3-year CAGR; map 0%-20% to 0-100 and clamp. |
-| Risk-adjusted | 0.26 | Average available Sharpe/Sortino; map ratio 0-1.5 to 0-100 and clamp. |
-| Peer standing | 0.30 | Average available 3-year return, 5-year return, and Sharpe percentiles, multiplied by 100. |
-| Consistency | 0.14 | Prefer 5-year rolling returns; score `100 * (1 - 4 * negative-window-share)`, clamped. |
-| Drawdown | 0.08 | Score based on magnitude: -20% maps to 100, -60% maps to 0, clamped. |
+| Long-term return | 0.22 | Use 5-year yearly growth, or 3-year if 5-year is unavailable. A 0% yearly return maps to 0 points and 20% or more maps to 100; values outside that range are capped. |
+| Risk-adjusted | 0.26 | Average the available Sharpe and Sortino ratios. A ratio of 0 maps to 0 points; 1.5 or more maps to 100. |
+| Peer standing | 0.30 | Average the available 3-year return, 5-year return, and Sharpe percentiles, then convert the fraction to 0-100 points. |
+| Consistency | 0.14 | Prefer the 5-year rolling-return periods. Fewer negative periods means more points; 25% or more negative periods reaches 0. |
+| Drawdown | 0.08 | A worst fall of 20% or less maps to 100 points; a fall of 60% or more maps to 0. Intermediate values scale between those points. |
 
 The final health score is the weighted sum divided by the total weight of available
-components. A zero score is returned only when no component can be calculated.
+components. In other words, each available sub-score is multiplied by its importance share,
+those results are added, and the total is divided by the shares used. A zero score is returned
+only when no component can be calculated.
 
 ### Verdict and confidence
 
@@ -731,9 +865,10 @@ The order of the verdict rules is significant:
 3. Otherwise, peer score exists and is < 0.45: **Shift**.
 4. Otherwise: **Continue** for health >= 55, else **Shift**.
 
-Confidence combines component completeness with how much the score components agree. It is
-clamped between 0.25 and 0.95. It is a heuristic about this calculation's evidence, not a
-statistical confidence interval or a guarantee.
+Confidence combines how much of the possible evidence was available with how much the
+component scores agree. It is kept between 0.25 and 0.95. This is a simple indicator built by
+the product's rules, not a formal statistical estimate and not a promise that the verdict is
+correct.
 
 `build_evidence()` creates a readable evidence ledger from computed metrics and peer results.
 Each computed item includes its claim, evidence category, positive/negative/neutral direction,
@@ -767,9 +902,10 @@ name in `agent/portfolio.py`.
 6. Calculates the holding's personal position and returns it with the review.
 
 A missing scheme, failed review, or absent latest NAV makes that holding unavailable to the
-portfolio result. The batch endpoint uses `asyncio.gather()` to analyze all holdings
-concurrently. The NAV semaphore separately limits simultaneous upstream HTTP fetches; it does
-not limit the number of Python holding tasks created.
+portfolio result. The batch endpoint uses `asyncio.gather()` to start all holding analyses
+without waiting for one to finish before starting the next. The NAV traffic light separately
+limits simultaneous downloads from mfapi.in; it does not limit how many holding-review tasks
+can be waiting or calculating at once.
 
 ### Personal position math
 
@@ -795,21 +931,27 @@ calculates:
 - total invested, current value, gain/loss, and overall total return;
 - each fund's weight by current value;
 - category value and percentage mix;
-- HHI concentration: sum of squared current holding weights;
+- HHI concentration: square each holding's share of the portfolio and add the squares;
 - largest holding and largest category percentages;
 - a current-value-weighted mean of each fund's health score;
 - a transparent concentration penalty (0-12 points);
 - portfolio verdict, best/worst personal return, and action-item observations.
 
+For example, if two funds each make up half the portfolio, their shares are 0.5 and 0.5;
+squaring and adding gives an HHI of 0.50. A single holding with all the money has an HHI of
+1.00. A higher HHI means more of the portfolio is concentrated in fewer funds.
+
 The diversification penalty is 12 points for one holding; 10 points when at least 70% is in
 one category or HHI is at least 0.50; 5 points when at least 50% is in one category or HHI is
 at least 0.33; zero for at least four holdings with HHI below 0.25; and 2 points otherwise.
 The verdict is `Healthy` for health >= 65 and penalty <= 5; otherwise `Minor tweaks` for health
->= 50; otherwise `Needs rebalancing`. These are product heuristics, not regulated ratings or
+>= 50; otherwise `Needs rebalancing`. These are product rules of thumb, not regulated ratings or
 personalized instructions.
 
-Portfolio confidence is currently a fixed 0.8 for two or more successfully analyzed holdings
-and 0.6 for one. It is not derived from the fund-level confidence values.
+The portfolio health before the penalty is an average weighted by today's holding values:
+larger holdings influence it more. Portfolio confidence is currently a fixed 0.8 for two or
+more successfully analyzed holdings and 0.6 for one; it is not calculated from fund-level
+confidence values.
 
 The synchronous route returns the completed aggregate at once. The streaming route calls
 `analyze_holding()` tasks and uses `asyncio.as_completed()`, which is why progress events
@@ -820,9 +962,12 @@ are known.
 
 ## 11. CAS statement import
 
-`POST /api/portfolio/import` accepts a CAMS/KFintech Consolidated Account Statement PDF and
-optional password. `data/cas_import.py` parses it with `casparser` in a worker thread so the
-synchronous PDF parsing does not block the async event loop.
+`POST /api/portfolio/import` accepts a CAMS/KFintech Consolidated Account Statement (CAS)
+PDF and optional password. CAMS and KFintech are Indian companies that maintain mutual-fund
+account records. `data/cas_import.py` uses the `casparser` library to read the PDF.
+PDF-reading is ordinary blocking work (the code waits while it finishes), so the route sends
+that work to a separate worker thread. This lets the main request-handling loop keep serving
+other requests while the PDF is read.
 
 ```mermaid
 sequenceDiagram
@@ -832,7 +977,7 @@ sequenceDiagram
     participant Parser as casparser / import_cas
     participant Master as AMFI SchemeMaster
 
-    Caller->>Route: Multipart PDF + optional password
+    Caller->>Route: PDF file + optional password
     Route->>Route: Read at most configured limit + 1 bytes
     alt Too many bytes
         Route-->>Caller: HTTP 413
@@ -853,7 +998,7 @@ sequenceDiagram
 ```
 
 The backend reads at most `cas_max_bytes + 1` bytes (15,000,000 bytes by default), closes the
-upload, then rejects an oversize file with HTTP 413. The importer:
+upload, then rejects an oversize file with HTTP 413 (request too large). The importer:
 
 - parses only active schemes with closing units above zero;
 - matches AMFI code first, then ISIN;
@@ -865,8 +1010,9 @@ upload, then rejects an oversize file with HTTP 413. The importer:
   statement.
 
 The route does not intentionally write the PDF or password to disk, log them, or send them to
-an LLM/web service. It clears its local references after parsing. Python memory clearing is
-not a cryptographic erasure guarantee. The import endpoint only prepares holdings; the user
+an AI or web-search service. It drops its references to the file and password after parsing.
+This does not promise that every trace of those bytes is immediately erased from computer
+memory; Python does not provide that kind of secure wipe here. The import endpoint only prepares holdings; the user
 must submit the holdings to `/portfolio` or `/portfolio/stream` for analysis.
 
 ---
@@ -897,7 +1043,7 @@ The standard graph calls `narrate` after the verdict is fixed. With no LLM key,
 `_deterministic_narrative()` uses the existing evidence and verdict to form a simple report.
 With a key, `agent/llm.py` sends metrics, peer ranks, evidence, and the already-computed
 verdict to the model. It asks for explanatory JSON. `nodes.narrate()` retains the computed
-verdict, applies the canonical caveats, and falls back to a template if generation fails.
+verdict, adds the standard educational warnings, and uses a simple template if generation fails.
 
 The LLM's job is to explain, not calculate or replace the deterministic score/verdict.
 
@@ -905,7 +1051,7 @@ The LLM's job is to explain, not calculate or replace the deterministic score/ve
 
 `GET /api/research?scheme_code=...` calls `research_fund()` and runs the `research_only` plan.
 `agent/research.py` submits two search topics (fund facts and recent news/regulatory context)
-to Tavily concurrently. It then:
+to Tavily at the same time. It then:
 
 1. drops results without usable URLs/content;
 2. appraises each source with `appraisal.py`;
@@ -921,20 +1067,22 @@ computed `/review` response.
 
 ### Source appraisal and citations
 
-`appraisal.py` assigns a 0-1 reliability value using the source domain, publication date, and
-corroboration. It stores the reasons with each source. Computed data uses a separate
+`appraisal.py` gives each web page a score from 0 to 1, using the website, publication date,
+and **corroboration**—whether other independent sources support the same fact. For example,
+0.80 is an 80-out-of-100 score under this code's rules; it is not an 80% mathematical
+probability that the article is true. The reasons are stored with the source. Computed data uses a separate
 `computed_source()` reference with reliability 1.0. The current web scoring starts with the
 domain's configured trust value (unknown domain 0.40; no URL is capped at 0.25), then adjusts:
 
 - publication within 180 days: +0.05; older than 730 days: -0.15; unknown date: -0.05;
-- two or more corroborating sources: +0.15; one: +0.05; none: -0.10; and
-- final score is clamped to 0-1. Claims below `TRUST_FLOOR` 0.45 are not sent to claim
-  extraction.
+- two or more supporting sources: +0.15; one: +0.05; none: -0.10; and
+- final score is kept within 0-1. Sources below `TRUST_FLOOR` (the minimum accepted score) of
+  0.45 are not sent to the model for claim extraction.
 
 The configured domain values put regulators/industry sources such as `sebi.gov.in`,
 `amfiindia.com`, and `rbi.org.in` at 0.95; BSE/NSE at 0.90; selected research/data platforms
 around 0.58-0.80; and mainstream financial press around 0.65-0.70. This is a transparent
-heuristic, not an independent verification of the article's contents.
+rule-of-thumb score, not an independent check that the article's contents are true.
 
 `citations.py` deduplicates sources by URL and numbers them in first-use order. Research claims
 retain their source references; footnotes include number, title, URL, domain, reliability,
@@ -942,19 +1090,22 @@ and publication date when known.
 
 ### Fund and portfolio insight cards
 
-`GET /api/insights` runs the `fund_insights` graph task: metrics, peers, evidence, score, and
-then `generate_insights` (no narrative node). `POST /api/insights/portfolio` accepts an
+`GET /api/insights` runs the `fund_insights` checklist: metrics, peer comparison, evidence,
+score, and then `generate_insights` (it skips the narrative step). `POST /api/insights/portfolio` accepts an
 already-computed summary and brief holdings. `agent/insights.py` either asks the model for
-structured cards based on that data or makes deterministic fallback cards. Successful
-results are cached for 12 hours; keys are fund-code based for fund cards and content-hashed
-for portfolio cards. Transient LLM failures do not turn into fabricated quantitative data.
+structured cards based on that data or makes simple backup cards from the existing numbers.
+Successful results are cached for 12 hours; a fund card is identified by scheme code, while a
+portfolio card uses a short fingerprint calculated from the summary and holdings. Temporary
+LLM failures do not turn into made-up quantitative data.
 
 ### Market Pulse versus market chart
 
-These similarly named features have different data paths:
+These similarly named features have different data paths. A **proxy** is a stand-in used
+when the exact thing cannot be measured directly:
 
 - `/market-chart` is deterministic. `agent/market_chart.py` obtains NAV history from
-  selected index-fund proxies, calculates historical segment returns and a numbers-only
+  selected index funds that stand in for different market segments, calculates historical
+  segment returns and a numbers-only
   recent-market read, and returns fixed illustrative scenario assumptions. It uses no LLM or
   Tavily. The scenarios are assumptions, not forecasts.
 - `/market-pulse` uses current Tavily news results, the source appraisal gate, citations, and
@@ -967,10 +1118,11 @@ These similarly named features have different data paths:
 
 `POST /api/fund/chat` and `POST /api/portfolio/chat` accept analysis context from the caller;
 the backend does not first load a fund or portfolio from storage. Their services pass only
-that validated context and bounded conversation to the configured provider. They have no
-search tools and no transcript persistence. Prompts prohibit invented facts and personalized
-buy/sell/switch instructions. Both have an in-process daily request cap and known provider
-errors are reported as HTTP 502; missing provider configuration is HTTP 503. Fund chat and
+that validated context and a size-limited conversation to the configured AI service. They
+have no web-search tools and do not save a conversation transcript. Their instructions
+prohibit invented facts and personalized buy/sell/switch instructions. Each chat feature has
+a daily request cap stored in its running backend copy's memory. Known AI-service errors are
+reported as HTTP 502; missing AI configuration is HTTP 503. Fund chat and
 portfolio chat each keep a separate counter in their own module; both use
 `HPR_PORTFOLIO_CHAT_DAILY_CAP`, so the limit applies separately to each endpoint, not as one
 combined counter.
@@ -981,12 +1133,16 @@ combined counter.
 
 ### Application and API
 
+The word "typed" below means a value has a documented kind, such as text, a number, or a
+list. A **response builder** turns results from the internal calculations into the JSON
+shape promised by an endpoint.
+
 | File | Responsibility |
 |---|---|
 | `backend/app/main.py` | Creates `FastAPI`, CORS middleware, startup lifespan, and `/api` router prefix. |
-| `backend/app/api/routes.py` | The 17 HTTP handlers, Pydantic route inputs, response assembly, portfolio fan-out, and SSE frame generator. |
-| `backend/app/models/schemas.py` | Typed request/response contracts and field-level/conversation validation. |
-| `backend/app/config.py` | Environment-backed `Settings`, provider/capability properties, cached settings accessor, and cache-directory setup. |
+| `backend/app/api/routes.py` | The 17 HTTP request handlers, input checks, response building, starting one analysis per portfolio holding, and SSE message creation. |
+| `backend/app/models/schemas.py` | Descriptions of accepted request and response fields, plus checks on values and chat-message order. |
+| `backend/app/config.py` | Reads settings, reports whether optional services are available, remembers those settings during the run, and creates the cache folder. |
 | `backend/app/disclaimer.py` | Canonical educational and portfolio/fund caveats used by analysis/narrative paths. |
 
 ### Agent and optional reasoning
@@ -995,62 +1151,64 @@ combined counter.
 |---|---|
 | `backend/app/agent/state.py` | LangGraph `AgentState`, evidence item, source reference, and verdict/direction types. |
 | `backend/app/agent/graph.py` | Stable API for `review_fund`, `research_fund`, `insights_fund`, and compiled graph access. |
-| `backend/app/agent/supervisor.py` | Ordered task plans, specialist registry, supervisor routing, and `run_task()`. |
+| `backend/app/agent/supervisor.py` | Fixed task checklists, the list of specialist functions, and the code that runs the next step. |
 | `backend/app/agent/nodes.py` | Graph node implementations: quant, peers, research, evidence, verdict, narrative, insight. |
 | `backend/app/agent/verdict.py` | Computed evidence and deterministic health score/verdict/confidence rules. |
-| `backend/app/agent/portfolio.py` | Per-holding review orchestration and personal cost-basis calculation hookup. |
+| `backend/app/agent/portfolio.py` | Reviews each holding and connects the review with its personal units and purchase cost. |
 | `backend/app/agent/llm_provider.py` | Provider factory for Anthropic or Groq through LangChain. |
 | `backend/app/agent/llm.py` | Optional fund-review narrative prompt and JSON parsing. |
 | `backend/app/agent/research.py` | Fund searches, source filtering, cited claim extraction, and web evidence. |
-| `backend/app/agent/appraisal.py` | Reliability score and reasons for computed/web sources. |
+| `backend/app/agent/appraisal.py` | Web-page trust score and the reasons behind it. |
 | `backend/app/agent/citations.py` | URL-deduplicated citation numbering and footnote output. |
-| `backend/app/agent/insights.py` | Fund/portfolio insight cards, fallback cards, and insight caching. |
+| `backend/app/agent/insights.py` | Fund/portfolio insight cards, backup cards when needed, and saved insight results. |
 | `backend/app/agent/market.py` | Cited, web-based Market Pulse generation and validation. |
 | `backend/app/agent/market_chart.py` | Deterministic index-fund proxy chart data, segment returns, market read, and scenario assumptions. |
-| `backend/app/agent/fund_chat.py` | Constrained single-fund Q&A and in-process daily chat quota. |
-| `backend/app/agent/portfolio_chat.py` | Constrained portfolio Q&A and in-process daily chat quota. |
+| `backend/app/agent/fund_chat.py` | Single-fund Q&A with fixed limits and a daily counter stored in this running copy of the backend. |
+| `backend/app/agent/portfolio_chat.py` | Portfolio Q&A with fixed limits and a separate daily counter stored in this running copy of the backend. |
 
 ### Analysis and data
 
 | File | Responsibility |
 |---|---|
-| `backend/app/analysis/metrics.py` | Pure NAV-derived metric/report types and calculations. |
+| `backend/app/analysis/metrics.py` | Calculates fund measurements from NAV values and dates. |
 | `backend/app/analysis/peers.py` | Peer candidate selection, peer NAV analysis, and percentile ranks. |
-| `backend/app/analysis/portfolio.py` | Personal position arithmetic, category mix, HHI, weighted score and portfolio verdict. |
+| `backend/app/analysis/portfolio.py` | Personal holding math, category mix, concentration, combined score, and portfolio verdict. |
 | `backend/app/analysis/recommend.py` | Same-category research leads and side-by-side metric comparisons. |
 | `backend/app/analysis/explainers.py` | Metric explanations and interpretation thresholds. |
 | `backend/app/analysis/qualitative.py` | Deterministic record-age/recovery/resilience facts from NAV points. |
 | `backend/app/analysis/fund_history.py` | Monthly fund NAV history rebased to growth of 100 and summary statistics. |
-| `backend/app/analysis/review_view.py` | Canonical review response assembly and metric enrichment. |
+| `backend/app/analysis/review_view.py` | Builds the same complete review response wherever a fund review is used. |
 | `backend/app/data/amfi.py` | AMFI feed download/parser, scheme records, search, and code/ISIN indexes. |
-| `backend/app/data/navapi.py` | mfapi.in HTTP client, retries, NAV parsing, caching, fetch semaphore, and series records. |
-| `backend/app/data/websearch.py` | Tavily HTTP client, result normalization/cache, and process daily search cap. |
+| `backend/app/data/navapi.py` | Gets and cleans NAV history from mfapi.in, retries failures, caches data, and limits simultaneous downloads. |
+| `backend/app/data/websearch.py` | Gets Tavily search results, saves reusable copies, and tracks the daily search limit. |
 | `backend/app/data/cache.py` | Dependency-free JSON file TTL cache. |
-| `backend/app/data/cas_import.py` | In-memory CAS parser, freshness checks, active-holding extraction, and AMFI/ISIN matching. |
+| `backend/app/data/cas_import.py` | Reads a CAS statement temporarily, checks its age, finds active holdings, and matches funds to AMFI. |
 
-The backend's core design boundary is that `data/` obtains and normalizes inputs, `analysis/`
-calculates values, `agent/` coordinates tasks and optional explanations, and `api/` exposes
-the behavior over HTTP.
+The backend is split by job: `data/` gets outside information and puts it into a consistent
+shape; `analysis/` calculates values; `agent/` coordinates the review steps and optional
+explanations; and `api/` receives network requests and returns results.
 
 ---
 
 ## 14. Configuration and integrations
 
-Settings use the `HPR_` prefix by default and read `backend/.env` when present. Provider
-selection and keys also accept conventional unprefixed names as indicated below. Do not
-commit `.env` files or API keys.
+Settings are the values that control how the backend behaves. They can be set outside the
+Python code, usually in the deployment environment or a local `backend/.env` file. Most
+settings start with `HPR_`; provider selection and API keys also accept the unprefixed names
+shown below. An **API key** is a secret password-like value that lets this backend use a
+third-party service. Do not commit `.env` files or API keys.
 
 | Setting | Default | Effect |
 |---|---|---|
-| `HPR_APP_NAME` | `Truthfolio` | FastAPI title. |
+| `HPR_APP_NAME` | `Truthfolio` | Name shown in FastAPI's generated API reference. |
 | `HPR_CORS_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Allowed browser origins; a comma-separated string is accepted. |
 | `HPR_AMFI_NAV_URL` | AMFI `NAVAll.txt` URL | Scheme master source. |
 | `HPR_MFAPI_BASE` | `https://api.mfapi.in/mf` | NAV-history API base. |
-| `HPR_HTTP_TIMEOUT_SECONDS` | `20` | Timeout for upstream HTTP calls. |
-| `HPR_CACHE_DIR` | `backend/.cache` | Directory for JSON cache files. |
-| `HPR_AMFI_MASTER_TTL_HOURS` | `24` | AMFI disk-cache lifetime. |
-| `HPR_NAV_TTL_HOURS` | `12` | NAV disk-cache lifetime. |
-| `HPR_RISK_FREE_RATE` | `0.065` | Annual rate used by Sharpe/Sortino. |
+| `HPR_HTTP_TIMEOUT_SECONDS` | `20` | How many seconds to wait for a reply from an outside service before stopping that request. |
+| `HPR_CACHE_DIR` | `backend/.cache` | Folder where reusable JSON copies are saved. |
+| `HPR_AMFI_MASTER_TTL_HOURS` | `24` | How many hours a saved AMFI directory is considered fresh. |
+| `HPR_NAV_TTL_HOURS` | `12` | How many hours a saved NAV history is considered fresh. |
+| `HPR_RISK_FREE_RATE` | `0.065` | Yearly low-risk reference rate used in Sharpe/Sortino calculations. |
 | `LLM_PROVIDER` / `HPR_LLM_PROVIDER` | `anthropic` | Active LLM provider; `groq` selects Groq. |
 | `LLM_MODEL` / `HPR_LLM_MODEL` | `claude-opus-4-8` | Model identifier passed to provider client. |
 | `ANTHROPIC_API_KEY` / `HPR_ANTHROPIC_API_KEY` | Unset | Enables Anthropic when selected. |
@@ -1060,13 +1218,13 @@ commit `.env` files or API keys.
 | `HPR_TAVILY_BASE` | Tavily search URL | Search endpoint. |
 | `HPR_SEARCH_DEPTH` | `basic` | Tavily depth setting. |
 | `HPR_SEARCH_MAX_RESULTS` | `4` | Result count requested per query. |
-| `HPR_SEARCH_TTL_HOURS` | `72` | Search-result TTL. |
+| `HPR_SEARCH_TTL_HOURS` | `72` | How many hours saved web-search results may be reused. |
 | `HPR_SEARCH_DAILY_CAP` | `60` | Successful uncached Tavily calls counted per process/day; failed calls do not increment the counter. |
 | `HPR_PORTFOLIO_CHAT_DAILY_CAP` | `100` | Per-process daily cap for each chat endpoint; fund and portfolio counters are separate. |
 | `HPR_CAS_WARN_DAYS` | `30` | Age after which the CAS gets a warning. |
 | `HPR_CAS_REJECT_DAYS` | `90` | Age after which the CAS is rejected. |
 | `HPR_CAS_MAX_BYTES` | `15000000` | Maximum accepted uploaded statement size. |
-| `HPR_MARKET_PROXY_CODE` | `119648` | Configured market proxy code; market-segment chart currently has its own segment scheme-code list. |
+| `HPR_MARKET_PROXY_CODE` | `119648` | Configured market proxy code; the market-segment chart currently uses its own list of fund codes. |
 
 AMFI and mfapi are external public data services. Tavily, Anthropic, and Groq are optional
 third-party services. When a request uses an LLM or search provider, the relevant request data
@@ -1092,19 +1250,20 @@ is sent to that provider; ordinary deterministic fund calculations do not requir
 | CAS parse/password/freshness problem | Import status/message in normal response body. |
 | Fund history cannot be produced | `available:false` with a reason in a normal response body. |
 | Market chart unavailable | `available:false` with a reason in a normal response body. |
-| LLM narrative unavailable/fails | Deterministic narrative fallback. |
+| LLM narrative unavailable/fails | The backend writes a simple explanation from the same evidence instead. |
 | Tavily key absent/budget exhausted/request failure | No results; optional feature returns empty/disabled/unavailable output. |
 
 Some optional enrichment code intentionally catches provider/parsing failures to preserve the
 deterministic product. This differs from core data paths: failed NAV retrieval can prevent an
-analysis, while failed narrative generation can fall back without changing the score.
+analysis, while a failed narrative request can use the simple backup template without
+changing the score.
 
 ### Resource and concurrency limits
 
 - A portfolio accepts at most 40 holdings.
-- Each NAV HTTP request is bounded by the shared process semaphore (16).
+- At most 16 NAV downloads can happen at once across this running backend copy.
 - Peer ranking selects at most 18 peers; recommendation scans at most 120 category candidates.
-- Chat requests are bounded by message count, character count, and serialized context size.
+- Chat requests have limits on message count, character count, and total JSON request size.
 - CAS uploads are capped by `HPR_CAS_MAX_BYTES`.
 - Tavily search and chat caps are in-memory per process, not per user or across instances.
   Fund-chat and portfolio-chat usage counters are separate even though they share one setting.
@@ -1123,14 +1282,16 @@ analysis, while failed narrative generation can fall back without changing the s
 
 ### Deployment considerations
 
-This backend expects a long-running ASGI process. It warms an in-memory AMFI master, holds
-process-local caches/counters, and can keep SSE responses open. A serverless deployment with
-short-lived, isolated invocations would not share those process-level optimizations and quotas.
+This backend expects a long-running service process: a program that stays running and handles
+requests over time. It keeps the AMFI directory, cache-related data, and usage counters in that
+process's memory, and it can keep an SSE connection open while work continues. A short-lived
+serverless setup may start a fresh, separate program for each request, so it would not
+automatically share those in-memory copies and counters.
 
-For multiple backend instances, each instance currently has its own cache and usage counters.
-This is not a globally consistent search or chat quota. A multi-instance deployment needing
-shared cache/quota behavior must add shared infrastructure rather than assuming local files
-are shared.
+If the service is run as several copies to handle more traffic, each copy currently has its
+own cache and usage counters. The search/chat limits therefore apply separately to each copy,
+not as one total limit for the whole deployment. A deployment that needs one shared cache or
+one shared usage limit would need additional shared storage.
 
 ---
 
@@ -1170,9 +1331,9 @@ recommendations, and qualitative analysis.
 | Change score/verdict | `agent/verdict.py` | Evidence behavior, review outputs, quantitative tests, explanations. |
 | Change peer selection | `analysis/peers.py` | Recommendation candidate rules and ranking tests. |
 | Change portfolio math | `analysis/portfolio.py` | `agent/portfolio.py`, both portfolio routes and tests. |
-| Change upstream data/cache | `data/` | Timeouts, retries, TTL, failure behavior, privacy. |
+| Change outside data sources or saved copies | `data/` | Timeouts, retries, how long copies stay fresh, error behavior, privacy. |
 | Add a graph specialist/task | `agent/nodes.py`, `agent/supervisor.py` | `agent/state.py`, stable entry point in `agent/graph.py`, route, tests. |
-| Change optional model behavior | Specialist module plus `llm_provider.py` | Disabled/failure fallback and whether data leaves the backend. |
+| Change optional AI behavior | Specialist module plus `llm_provider.py` | Disabled/failure backup behavior and whether data leaves the backend. |
 | Change CAS handling | `data/cas_import.py` and import route | File-size limit, matching, date policy, privacy, tests. |
 
 The main package dependencies and test/lint settings are in `backend/pyproject.toml`.
@@ -1184,18 +1345,33 @@ The main package dependencies and test/lint settings are in `backend/pyproject.t
 
 | Term | Simple meaning |
 |---|---|
-| **AMFI scheme master** | The official directory used to confirm that a scheme exists and find its identity. |
-| **ASGI** | The interface Uvicorn uses to host an asynchronous Python web app such as FastAPI. |
-| **CAGR** | Smoothed yearly growth rate from a starting value to an ending value. |
-| **Evidence ledger** | A list of result-supporting claims, each with direction, weight, confidence, and sources. |
-| **HHI** | A concentration score made by squaring each holding's share and adding the results. |
-| **LangGraph** | A library that runs stateful steps as a graph; here, a fixed supervisor dispatches specialist functions. |
-| **NAV** | Net asset value: the published value of one mutual-fund unit. |
-| **Pydantic** | The validation library used to turn incoming JSON into checked Python data models. |
-| **Percentile** | How a value compares with the group, accounting for whether higher or lower is better. |
-| **SSE** | Server-Sent Events: named messages streamed from server to caller over one HTTP response. |
-| **TTL** | Time to live: how long a cached entry is treated as fresh. |
-| **Uvicorn** | The ASGI server process that accepts network traffic and runs FastAPI. |
+| **API** | A set of agreed addresses and actions that lets one program ask another program for information or work. |
+| **ASGI** | The standard connection used by Uvicorn to hand network requests to the Python web app. Think of it as the matching plug between server and app. |
+| **AMFI** | Association of Mutual Funds in India. The scheme master is its directory of official fund scheme names and codes. |
+| **AMC** | Asset Management Company: the fund house that manages a mutual fund. |
+| **CORS** | Cross-Origin Resource Sharing: browser rules that decide which website addresses may read responses from this API. It is not login or authentication. |
+| **CAGR** | Compound annual growth rate: a smoothed yearly growth rate connecting a starting value to an ending value. |
+| **Cache** | A saved copy of information that can be reused instead of downloaded or calculated again. It is temporary convenience, not saved portfolio storage. |
+| **CAS** | Consolidated Account Statement: a document listing mutual-fund holdings across accounts. |
+| **Confidence** | Truthfolio's rough indicator of how much evidence is available and how well its score components agree. It is not a guarantee. |
+| **Deterministic** | The same data and settings produce the same answer because ordinary code rules do the calculation. |
+| **Endpoint / route** | One supported API address and action, such as `GET /api/search` or `POST /api/review`. |
+| **Evidence ledger** | The list of statements used to explain a result, with what each statement supports and where it came from. |
+| **HTTP** | The common rules computers use to send a request and receive a response over a network. |
+| **HTTP status code** | A number describing the request outcome: for example 200 success, 404 not found, or 422 invalid input. |
+| **HHI** | A concentration measure: square each holding's share and add the results. A larger number means more money sits in fewer holdings. |
+| **ISIN** | An international identifier for a financial product. The CAS importer can use it to match a holding if its AMFI code is missing. |
+| **LLM** | Large language model: an AI system that can write or explain text. Here it may explain results, but does not decide the standard fund verdict. |
+| **Middleware** | Helper code that runs around requests and responses. Truthfolio's CORS middleware checks which website origin a browser request came from. |
+| **NAV** | Net Asset Value: the published value of one mutual-fund unit, like the unit's price tag. |
+| **Pydantic** | The Python library that checks incoming data has the required fields and acceptable values. Like checking that a form is filled out correctly. |
+| **Percentile** | A comparison with a group. An 80th-percentile result means the fund did as well as or better than about 80% of the comparison group on that measure. |
+| **Process** | One running copy of the backend program. Memory, counters, and in-memory data belong to that running copy. |
+| **Proxy** | A stand-in used to represent something that is not measured directly. The market chart uses index-fund NAVs as stand-ins for market segments. |
+| **SSE** | Server-Sent Events: a way for the server to send progress updates through one open HTTP response. |
+| **TTL** | Time to live: how long a saved copy is considered fresh before the backend downloads or calculates it again. |
+| **Uvicorn** | The web-server program that listens for requests and connects them to the FastAPI app. |
+| **Weighted average** | An average where larger shares count more. For example, a fund that is 70% of a portfolio influences its combined health score more than one that is 5%. |
 
 ---
 
