@@ -13,6 +13,8 @@ import Recommendations from "./Recommendations";
 import FundChat from "./FundChat";
 import FundHistoryChart from "./FundHistoryChart";
 import Markdown from "./Markdown";
+import QuickRead from "./QuickRead";
+import { buildFundQuickRead } from "@/lib/quickread";
 
 export default function FundReview({
   review,
@@ -32,6 +34,10 @@ export default function FundReview({
   return (
     <div className="space-y-6">
       <VerdictCard review={review} />
+
+      <div className="flex justify-center sm:justify-start">
+        <QuickRead data={buildFundQuickRead(review, personal)} />
+      </div>
 
       {personal && <PersonalStrip personal={personal} />}
 

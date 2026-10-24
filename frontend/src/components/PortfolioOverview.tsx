@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import type { PortfolioSummary, Tone } from "@/lib/types";
 import { formatINR, formatPct, toneColor } from "@/lib/format";
 import HealthGauge from "./HealthGauge";
+import QuickRead from "./QuickRead";
+import { buildPortfolioQuickRead } from "@/lib/quickread";
 
 function verdictTone(v: string): Tone {
   if (v === "Healthy") return "positive";
@@ -41,6 +43,9 @@ export default function PortfolioOverview({ summary }: { summary: PortfolioSumma
               {summary.verdict}
             </div>
             <p className="mt-4 max-w-xl text-base text-ink">{summary.headline}</p>
+            <div className="mt-4">
+              <QuickRead data={buildPortfolioQuickRead(summary)} />
+            </div>
           </div>
           <div className="flex shrink-0 justify-center sm:justify-end">
             <HealthGauge score={summary.health_score} tone={tone} />
