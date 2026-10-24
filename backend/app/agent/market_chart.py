@@ -31,7 +31,7 @@ _CACHE_TTL = 12 * 3600
 # The segments we chart, each backed by the longest-running plain, direct-growth index fund
 # for that slice of the market (verified against live AMFI/mfapi data). Order = large → broad.
 SEGMENTS: list[dict] = [
-    {"key": "nifty50", "code": "119648", "label": "Nifty 50",
+    {"key": "nifty50", "code": "120716", "label": "Nifty 50",
      "blurb": "The 50 largest companies"},
     {"key": "next50", "code": "143341", "label": "Nifty Next 50",
      "blurb": "The next 50 large companies"},

@@ -114,8 +114,9 @@ function MarketView({ data }: { data: Ready }) {
         </span>
       </div>
       <p className="mb-4 text-xs leading-relaxed text-ink-faint">
-        Growth of ₹100 in {segment.proxy.scheme_name}. The solid line is real NAV history; it
-        posts end-of-day, so it is about one trading day behind — not a live index level.
+        Growth of ₹100 in the {segment.label} (via an index fund — see note below<sup>*</sup>). The
+        solid line is real NAV history; it posts end-of-day, so it is about one trading day behind —
+        not a live index level.
       </p>
 
       {/* segment selector */}
@@ -225,11 +226,27 @@ function MarketView({ data }: { data: Ready }) {
         ))}
       </div>
 
+      <p className="mt-4 text-[11px] leading-relaxed text-ink-faint">
+        <sup>*</sup> Index-fund proxies used:{" "}
+        {segments.map((s, i) => (
+          <span key={s.key}>
+            {i > 0 && "; "}
+            {s.label} — {cleanFundName(s.proxy.scheme_name)}
+          </span>
+        ))}
+        .
+      </p>
+
       {data.disclaimer && (
-        <p className="mt-4 text-[11px] leading-relaxed text-ink-faint">{data.disclaimer}</p>
+        <p className="mt-2 text-[11px] leading-relaxed text-ink-faint">{data.disclaimer}</p>
       )}
     </section>
   );
+}
+
+/** Drop the "- Direct Plan - GROWTH" tail so the fund reads cleanly in the footnote. */
+function cleanFundName(name: string): string {
+  return name.split(/\s+-\s+(Direct|Regular)\b/i)[0].trim();
 }
 
 function Plot({
